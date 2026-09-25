@@ -118,14 +118,14 @@ TEAMS: Final = (
 )
 
 USERS: Final = (
-    User(f"{PREFIX}user-aarav", "aarav.mehta@example.com", "Aarav Mehta", f"{PREFIX}team-eng", "internal_user"),
-    User(f"{PREFIX}user-sophia", "sophia.chen@example.com", "Sophia Chen", f"{PREFIX}team-eng", "internal_user"),
-    User(f"{PREFIX}user-daniel", "daniel.okafor@example.com", "Daniel Okafor", f"{PREFIX}team-ds", "internal_user"),
-    User(f"{PREFIX}user-priya", "priya.nair@example.com", "Priya Nair", f"{PREFIX}team-ds", "internal_user"),
-    User(f"{PREFIX}user-lucas", "lucas.martin@example.com", "Lucas Martin", f"{PREFIX}team-support", "internal_user"),
-    User(f"{PREFIX}user-emma", "emma.wilson@example.com", "Emma Wilson", f"{PREFIX}team-support", "internal_user"),
-    User(f"{PREFIX}user-kenji", "kenji.sato@example.com", "Kenji Sato", f"{PREFIX}team-marketing", "internal_user"),
-    User(f"{PREFIX}user-olivia", "olivia.brown@example.com", "Olivia Brown", f"{PREFIX}team-sales", "internal_user"),
+    User(f"{PREFIX}user-aarav", "aarav.mehta@rabbitt.ai", "Aarav Mehta", f"{PREFIX}team-eng", "internal_user"),
+    User(f"{PREFIX}user-sophia", "sophia.chen@rabbitt.ai", "Sophia Chen", f"{PREFIX}team-eng", "internal_user"),
+    User(f"{PREFIX}user-daniel", "daniel.okafor@rabbitt.ai", "Daniel Okafor", f"{PREFIX}team-ds", "internal_user"),
+    User(f"{PREFIX}user-priya", "priya.nair@rabbitt.ai", "Priya Nair", f"{PREFIX}team-ds", "internal_user"),
+    User(f"{PREFIX}user-lucas", "lucas.martin@rabbitt.ai", "Lucas Martin", f"{PREFIX}team-support", "internal_user"),
+    User(f"{PREFIX}user-emma", "emma.wilson@rabbitt.ai", "Emma Wilson", f"{PREFIX}team-support", "internal_user"),
+    User(f"{PREFIX}user-kenji", "kenji.sato@rabbitt.ai", "Kenji Sato", f"{PREFIX}team-marketing", "internal_user"),
+    User(f"{PREFIX}user-olivia", "olivia.brown@rabbitt.ai", "Olivia Brown", f"{PREFIX}team-sales", "internal_user"),
 )
 
 KEYS: Final = (
