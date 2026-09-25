@@ -48,6 +48,10 @@ RUN npm run build
 # Builder stage
 FROM $LITELLM_BUILD_IMAGE AS builder
 
+# Fat LTO with one codegen unit needs ~3GB RAM for the final link and thrashes on 4GB hosts
+ENV CARGO_PROFILE_RELEASE_LTO=thin \
+    CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16
+
 WORKDIR /app
 USER root
 
