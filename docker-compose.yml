@@ -14,9 +14,9 @@ services:
     #  - "--config=/app/config.yaml"
     ##############################################
     ports:
-      - "4000:4000" # Map the container port to the host, change the host port if necessary
+      - "127.0.0.1:4000:4000" # Map the container port to the host, change the host port if necessary
     environment:
-      DATABASE_URL: "postgresql://llmproxy:dbpassword9090@db:5432/litellm"
+      DATABASE_URL: "postgresql://llmproxy:${POSTGRES_PASSWORD:-dbpassword9090}@db:5432/litellm"
       # Optional: route read-only queries (find_*, count, group_by, query_raw/_first)
       # to a separate reader endpoint, e.g. an Aurora reader. Leave unset for
       # single-DB deployments. With IAM_TOKEN_DB_AUTH enabled, the reader URL
@@ -43,9 +43,9 @@ services:
     environment:
       POSTGRES_DB: litellm
       POSTGRES_USER: llmproxy
-      POSTGRES_PASSWORD: dbpassword9090
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dbpassword9090}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data # Persists Postgres data across container restarts
     healthcheck:
@@ -60,7 +60,7 @@ services:
       - prometheus_data:/prometheus
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
     ports:
-      - "9090:9090"
+      - "127.0.0.1:9090:9090"
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
