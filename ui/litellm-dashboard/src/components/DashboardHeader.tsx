@@ -1,0 +1,62 @@
+"use client";
+
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import { ToolbarSeparator } from "@/components/shared/ToolbarSeparator";
+import { getBreadcrumb } from "@/components/leftnav";
+import ViewSwitcher from "@/components/Navbar/ViewSwitcher";
+import ThemeToggle from "@/components/ThemeToggle/ThemeToggle";
+import WorkerDropdown from "@/components/Navbar/WorkerDropdown/WorkerDropdown";
+import { useWorker } from "@/hooks/useWorker";
+import { clearTokenCookies } from "@/utils/cookieUtils";
+import { clearStoredReturnUrl, getLoginUrl } from "@/utils/returnUrlUtils";
+import { usePathname } from "next/navigation";
+
+// Top bar for the dashboard shell. Sits only over the content column (the brand
+// lives in the sidebar header); mirrors the design's breadcrumb-left / tools-right layout.
+export function DashboardHeader() {
+  const { title } = getBreadcrumb(usePathname());
+  const { isControlPlane, selectedWorker } = useWorker();
+  const showWorkerSwitch = isControlPlane && selectedWorker !== null;
+
+  const handleWorkerSwitch = (workerId: string) => {
+    clearTokenCookies();
+    clearStoredReturnUrl();
+    localStorage.removeItem("litellm_selected_worker_id");
+    localStorage.removeItem("litellm_worker_url");
+    window.location.href = `${getLoginUrl()}?worker=${encodeURIComponent(workerId)}`;
+  };
+
+  return (
+    <header className="flex h-14 flex-none items-center justify-between gap-4 border-b border-border bg-background px-4">
+      <Breadcrumb className="min-w-0">
+        <BreadcrumbList className="flex-nowrap">
+          <BreadcrumbItem className="flex-none">
+            <ViewSwitcher />
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem className="min-w-0">
+            <BreadcrumbPage className="truncate">{title}</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+
+      <div className="flex flex-none items-center gap-1">
+        {showWorkerSwitch && (
+          <>
+            <WorkerDropdown onWorkerSwitch={handleWorkerSwitch} />
+            <ToolbarSeparator />
+          </>
+        )}
+        <ThemeToggle />
+      </div>
+    </header>
+  );
+}
+
+export default DashboardHeader;
