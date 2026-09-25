@@ -5,8 +5,9 @@ Usage:
     python3 scripts/demo_data/seed_demo_data.py --cleanup > cleanup.sql
     docker exec -i litellm_db psql -v ON_ERROR_STOP=1 -U llmproxy -d litellm < seed.sql
 
-Every seeded row is marked (ids prefixed with ``demo-``, keys carry ``"demo_seed": true`` in
-metadata), so ``--cleanup`` removes exactly what was added and leaves real data alone. Seeding
+Demo ids look real but are derived deterministically from fixed names, and every demo request
+is attached to one of the demo API keys, so ``--cleanup`` removes exactly what was added and leaves
+real data alone. Seeding
 is idempotent: it removes the previous demo rows before inserting fresh ones, so rerunning it
 refreshes the dates to end today.
 """
@@ -26,8 +27,16 @@ from typing import Final
 DAYS: Final = 30
 LOG_DAYS: Final = 7
 LOGS_PER_DAY: Final = 220
-PREFIX: Final = "demo-"
-MARKER: Final = '{"demo_seed": true}'
+LEGACY_PREFIX: Final = "demo-"
+NAMESPACE: Final = uuid.UUID("7b1c2f0e-5a4d-4e8b-9c3f-2d6a8e1b4c90")
+
+
+def sid(name: str) -> str:
+    return str(uuid.uuid5(NAMESPACE, name))
+
+
+def customer_id(name: str) -> str:
+    return "cus_" + hashlib.sha256(name.encode()).hexdigest()[:14]
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,7 +93,7 @@ class Key:
 
     @property
     def token(self) -> str:
-        return hashlib.sha256(f"{PREFIX}{self.alias}".encode()).hexdigest()
+        return hashlib.sha256(f"{LEGACY_PREFIX}{self.alias}".encode()).hexdigest()
 
     @property
     def key_name(self) -> str:
@@ -105,51 +114,53 @@ MODELS: Final = {
 }
 
 ORGS: Final = (
-    Org(f"{PREFIX}org-product", "Product & Engineering", 12000.0),
-    Org(f"{PREFIX}org-ops", "Operations", 6000.0),
+    Org(sid("org-product"), "Product & Engineering", 12000.0),
+    Org(sid("org-ops"), "Operations", 6000.0),
 )
 
 TEAMS: Final = (
-    Team(f"{PREFIX}team-eng", "Engineering", f"{PREFIX}org-product", 5000.0),
-    Team(f"{PREFIX}team-ds", "Data Science", f"{PREFIX}org-product", 3000.0),
-    Team(f"{PREFIX}team-support", "Customer Support", f"{PREFIX}org-ops", 2500.0),
-    Team(f"{PREFIX}team-marketing", "Marketing", f"{PREFIX}org-ops", 1500.0),
-    Team(f"{PREFIX}team-sales", "Sales", f"{PREFIX}org-ops", 800.0),
+    Team(sid("team-eng"), "Engineering", sid("org-product"), 5000.0),
+    Team(sid("team-ds"), "Data Science", sid("org-product"), 3000.0),
+    Team(sid("team-support"), "Customer Support", sid("org-ops"), 2500.0),
+    Team(sid("team-marketing"), "Marketing", sid("org-ops"), 1500.0),
+    Team(sid("team-sales"), "Sales", sid("org-ops"), 800.0),
 )
 
 USERS: Final = (
-    User(f"{PREFIX}user-aarav", "aarav.mehta@rabbitt.ai", "Aarav Mehta", f"{PREFIX}team-eng", "internal_user"),
-    User(f"{PREFIX}user-sophia", "sophia.chen@rabbitt.ai", "Sophia Chen", f"{PREFIX}team-eng", "internal_user"),
-    User(f"{PREFIX}user-daniel", "daniel.okafor@rabbitt.ai", "Daniel Okafor", f"{PREFIX}team-ds", "internal_user"),
-    User(f"{PREFIX}user-priya", "priya.nair@rabbitt.ai", "Priya Nair", f"{PREFIX}team-ds", "internal_user"),
-    User(f"{PREFIX}user-lucas", "lucas.martin@rabbitt.ai", "Lucas Martin", f"{PREFIX}team-support", "internal_user"),
-    User(f"{PREFIX}user-emma", "emma.wilson@rabbitt.ai", "Emma Wilson", f"{PREFIX}team-support", "internal_user"),
-    User(f"{PREFIX}user-kenji", "kenji.sato@rabbitt.ai", "Kenji Sato", f"{PREFIX}team-marketing", "internal_user"),
-    User(f"{PREFIX}user-olivia", "olivia.brown@rabbitt.ai", "Olivia Brown", f"{PREFIX}team-sales", "internal_user"),
+    User(sid("user-parampreet"), "parampreet.singh@rabbitt.ai", "Parampreet Singh", sid("team-eng"), "internal_user"),
+    User(sid("user-hiten"), "hiten.singh@rabbitt.ai", "Hiten Singh", sid("team-eng"), "internal_user"),
+    User(sid("user-arpan"), "arpan.mehta@rabbitt.ai", "Arpan Mehta", sid("team-ds"), "internal_user"),
+    User(sid("user-diya"), "diya.ahuja@rabbitt.ai", "Diya Ahuja", sid("team-ds"), "internal_user"),
+    User(sid("user-hemant"), "hemant.sardana@rabbitt.ai", "Hemant Sardana", sid("team-support"), "internal_user"),
+    User(sid("user-pranoor"), "pranoor.singh@rabbitt.ai", "Pranoor Singh", sid("team-support"), "internal_user"),
+    User(sid("user-mudit"), "mudit.nag@rabbitt.ai", "Mudit Nag", sid("team-marketing"), "internal_user"),
+    User(sid("user-myiesha"), "myiesha.jain@rabbitt.ai", "Myiesha Jain", sid("team-marketing"), "internal_user"),
+    User(sid("user-mohit"), "mohit.jangra@rabbitt.ai", "Mohit Jangra", sid("team-sales"), "internal_user"),
+    User(sid("user-vishesh"), "vishesh.arora@rabbitt.ai", "Vishesh Arora", sid("team-sales"), "internal_user"),
 )
 
 KEYS: Final = (
-    Key("support-chatbot-prod", f"{PREFIX}user-lucas", f"{PREFIX}team-support", ("claude-haiku-4-5", "gpt-5.4-mini"),
+    Key("support-chatbot-prod", sid("user-hemant"), sid("team-support"), ("claude-haiku-4-5", "gpt-5.4-mini"),
         "customer-support", "/chat/completions", 1900, 2600, 320, 0.62, True, False, 900.0, "support"),
-    Key("support-ticket-triage", f"{PREFIX}user-emma", f"{PREFIX}team-support", ("gpt-5.4-mini",),
+    Key("support-ticket-triage", sid("user-pranoor"), sid("team-support"), ("gpt-5.4-mini",),
         "customer-support", "/chat/completions", 1100, 900, 60, 0.35, True, False, 300.0, "triage"),
-    Key("code-assistant", f"{PREFIX}user-aarav", f"{PREFIX}team-eng", ("claude-sonnet-5", "gpt-5.6"),
+    Key("code-assistant", sid("user-parampreet"), sid("team-eng"), ("claude-sonnet-5", "gpt-5.6"),
         "engineering", "/v1/messages", 650, 14000, 1100, 0.71, False, False, 2500.0, "code"),
-    Key("ci-pr-reviewer", f"{PREFIX}user-sophia", f"{PREFIX}team-eng", ("claude-sonnet-5",),
+    Key("ci-pr-reviewer", sid("user-hiten"), sid("team-eng"), ("claude-sonnet-5",),
         "engineering", "/v1/messages", 240, 9000, 700, 0.55, False, False, 900.0, "review"),
-    Key("rag-knowledge-base", f"{PREFIX}user-daniel", f"{PREFIX}team-ds", ("gemini-3.8-flash", "text-embedding-3-small"),
+    Key("rag-knowledge-base", sid("user-arpan"), sid("team-ds"), ("gemini-3.8-flash", "text-embedding-3-small"),
         "rag-pipeline", "/chat/completions", 1400, 5200, 380, 0.18, False, True, 1200.0, "rag"),
-    Key("model-eval-harness", f"{PREFIX}user-priya", f"{PREFIX}team-ds", ("claude-opus-5-5", "gpt-5.6"),
+    Key("model-eval-harness", sid("user-diya"), sid("team-ds"), ("claude-opus-5-5", "gpt-5.6"),
         "evaluation", "/chat/completions", 90, 6000, 1500, 0.05, False, False, 1500.0, "eval"),
-    Key("content-generator", f"{PREFIX}user-kenji", f"{PREFIX}team-marketing", ("gpt-5.6", "claude-sonnet-5"),
+    Key("content-generator", sid("user-mudit"), sid("team-marketing"), ("gpt-5.6", "claude-sonnet-5"),
         "marketing", "/chat/completions", 210, 1800, 1400, 0.25, True, False, 800.0, "content"),
-    Key("seo-summarizer", f"{PREFIX}user-kenji", f"{PREFIX}team-marketing", ("gemini-3.8-flash",),
+    Key("seo-summarizer", sid("user-myiesha"), sid("team-marketing"), ("gemini-3.8-flash",),
         "marketing", "/chat/completions", 380, 4200, 250, 0.1, False, True, 250.0, "summary"),
-    Key("sales-email-assistant", f"{PREFIX}user-olivia", f"{PREFIX}team-sales", ("gpt-5.4-mini",),
+    Key("sales-email-assistant", sid("user-mohit"), sid("team-sales"), ("gpt-5.4-mini",),
         "sales", "/chat/completions", 300, 1500, 420, 0.4, True, False, 200.0, "email"),
 )
 
-END_USERS: Final = tuple(f"{PREFIX}customer-{n:03d}" for n in (101, 117, 142, 203, 256, 318, 377, 402))
+END_USERS: Final = tuple(customer_id(f"customer-{n:03d}") for n in (101, 117, 142, 203, 256, 318, 377, 402))
 TAGS: Final = tuple(sorted({k.tag for k in KEYS} | {"production"}))
 GUARDRAILS: Final = (
     ("PII Masking", 0.021, 38.0),
@@ -233,7 +244,8 @@ def insert(table: str, rows: Iterable[Mapping[str, object]], on_conflict: str = 
     for row in rows:
         columns = ", ".join(f'"{c}"' for c in row)
         values = ", ".join(q(v) for v in row.values())
-        yield f'INSERT INTO "{table}" ({columns}) VALUES ({values}){on_conflict};'
+        target = table if "." in table else f'"{table}"'
+        yield f"INSERT INTO {target} ({columns}) VALUES ({values}){on_conflict};"
 
 
 @dataclass(frozen=True, slots=True)
@@ -300,7 +312,7 @@ def daily_cells(rng: random.Random, today: date) -> tuple[Cell, ...]:
 
 
 def daily_row(c: Cell, entity_column: str | None, entity_value: str | None) -> dict[str, object]:
-    base: Final[dict[str, object]] = {"id": f"{PREFIX}{uuid.uuid4()}"}
+    base: Final[dict[str, object]] = {"id": str(uuid.uuid4())}
     entity: Final[dict[str, object]] = {entity_column: entity_value} if entity_column else {}
     return base | entity | {
         "date": c.day,
@@ -356,8 +368,8 @@ def spend_logs(rng: random.Random, now: datetime) -> Iterator[dict[str, object]]
         question, answer = rng.choice(CONVERSATIONS[key.use_case])
         team = team_of(key.team_id)
         user = user_of(key.user_id)
-        request_id = f"{PREFIX}{uuid.UUID(int=rng.getrandbits(128))}"
-        session = f"{PREFIX}session-{n // 4:05d}" if key.use_case in ("support", "code") else None
+        request_id = str(uuid.UUID(int=rng.getrandbits(128)))
+        session = sid(f"session-{n // 4:05d}") if key.use_case in ("support", "code") else None
         guardrails = [
             {
                 "guardrail_name": name,
@@ -380,7 +392,6 @@ def spend_logs(rng: random.Random, now: datetime) -> Iterator[dict[str, object]]
             "litellm_overhead_time_ms": round(rng.uniform(3, 14), 2),
             "additional_usage_values": {"cache_read_input_tokens": cache_read, "cache_creation_input_tokens": 0},
             "guardrail_information": guardrails,
-            "demo_seed": True,
         }
         if failed:
             metadata["error_information"] = {
@@ -412,7 +423,7 @@ def spend_logs(rng: random.Random, now: datetime) -> Iterator[dict[str, object]]
             "completionStartTime": (start + timedelta(milliseconds=duration * 0.35)).replace(tzinfo=None).isoformat(sep=" "),
             "request_duration_ms": duration,
             "model": model.name,
-            "model_id": f"{PREFIX}{model.name}",
+            "model_id": sid(f"model-{model.name}"),
             "model_group": model.name,
             "custom_llm_provider": model.provider,
             "api_base": model.api_base,
@@ -453,6 +464,42 @@ def guardrail_metric_rows(rng: random.Random, today: date) -> Iterator[dict[str,
             }
 
 
+GATEWAY_ROUTES: Final = (
+    ("llm", "/chat/completions", 0.78),
+    ("llm", "/v1/messages", 0.17),
+    ("llm", "/embeddings", 0.05),
+    ("mcp", "/mcp", 0.03),
+)
+
+
+def gateway_rows(cells: Sequence[Cell]) -> Iterator[dict[str, object]]:
+    days: Final = sorted({c.day for c in cells})
+    for day in days:
+        total = sum(c.requests for c in cells if c.day == day)
+        for category, route, share in GATEWAY_ROUTES:
+            yield {
+                "date": day,
+                "category": category,
+                "route": route,
+                "successful_requests": int(total * share * 0.99),
+                "failed_requests": int(total * share * 0.01),
+            }
+
+
+SEED_ACTOR: Final = sid("seed-admin")
+
+
+def all_ids() -> tuple[str, ...]:
+    return (
+        tuple(o.org_id for o in ORGS)
+        + tuple(sid(f"budget-{o.org_id}") for o in ORGS)
+        + tuple(t.team_id for t in TEAMS)
+        + tuple(u.user_id for u in USERS)
+        + tuple(sid(f"user-{n}") for n in ("aarav", "sophia", "daniel", "priya", "lucas", "emma", "kenji", "olivia"))
+        + END_USERS
+    )
+
+
 DAILY_TABLES: Final = (
     ("LiteLLM_DailyUserSpend", "user_id"),
     ("LiteLLM_DailyTeamSpend", "team_id"),
@@ -464,21 +511,33 @@ DAILY_TABLES: Final = (
 
 def cleanup_sql() -> Iterator[str]:
     tokens: Final = ", ".join(q(k.token) for k in KEYS)
+    ids: Final = ", ".join(q(i) for i in all_ids())
     yield "CREATE TEMP TABLE demo_days ON COMMIT DROP AS SELECT DISTINCT \"date\" FROM \"LiteLLM_DailyUserSpend\" " \
           f"WHERE api_key IN ({tokens});"
     for table, _ in DAILY_TABLES:
         yield f'DELETE FROM "{table}" WHERE api_key IN ({tokens});'
-    yield f'DELETE FROM "LiteLLM_SpendLogs" WHERE request_id LIKE {q(PREFIX + "%")};'
+    yield f'DELETE FROM "LiteLLM_SpendLogs" WHERE api_key IN ({tokens}) OR request_id LIKE {q(LEGACY_PREFIX + "%")};'
     yield f'DELETE FROM "LiteLLM_DailyGuardrailMetrics" WHERE guardrail_id IN ({", ".join(q(g[0]) for g in GUARDRAILS)});'
     yield f'DELETE FROM "LiteLLM_DailyGatewayRequests" WHERE route LIKE {q("%#demo")};'
+    yield "CREATE SCHEMA IF NOT EXISTS raw_seed;"
+    yield ("CREATE TABLE IF NOT EXISTS raw_seed.gateway_requests (date text, category text, route text, "
+           "successful_requests bigint, failed_requests bigint);")
+    yield ('UPDATE "LiteLLM_DailyGatewayRequests" g SET '
+           "successful_requests = g.successful_requests - m.successful_requests, "
+           "failed_requests = g.failed_requests - m.failed_requests "
+           "FROM raw_seed.gateway_requests m WHERE g.date = m.date AND g.category = m.category AND g.route = m.route;")
+    yield ('DELETE FROM "LiteLLM_DailyGatewayRequests" g USING raw_seed.gateway_requests m '
+           "WHERE g.date = m.date AND g.category = m.category AND g.route = m.route "
+           "AND g.successful_requests <= 0 AND g.failed_requests <= 0;")
+    yield "TRUNCATE raw_seed.gateway_requests;"
     yield f'DELETE FROM "LiteLLM_VerificationToken" WHERE token IN ({tokens});'
-    yield f'DELETE FROM "LiteLLM_TeamMembership" WHERE user_id LIKE {q(PREFIX + "%")};'
-    yield f'DELETE FROM "LiteLLM_UserTable" WHERE user_id LIKE {q(PREFIX + "%")};'
-    yield f'DELETE FROM "LiteLLM_TeamTable" WHERE team_id LIKE {q(PREFIX + "%")};'
-    yield f'DELETE FROM "LiteLLM_OrganizationTable" WHERE organization_id LIKE {q(PREFIX + "%")};'
-    yield f'DELETE FROM "LiteLLM_EndUserTable" WHERE user_id LIKE {q(PREFIX + "%")};'
-    yield f'DELETE FROM "LiteLLM_TagTable" WHERE created_by = {q(PREFIX + "seed")};'
-    yield f'DELETE FROM "LiteLLM_BudgetTable" WHERE budget_id LIKE {q(PREFIX + "%")};'
+    yield f'DELETE FROM "LiteLLM_TeamMembership" WHERE user_id IN ({ids}) OR user_id LIKE {q(LEGACY_PREFIX + "%")};'
+    yield f'DELETE FROM "LiteLLM_UserTable" WHERE user_id IN ({ids}) OR user_id LIKE {q(LEGACY_PREFIX + "%")};'
+    yield f'DELETE FROM "LiteLLM_TeamTable" WHERE team_id IN ({ids}) OR team_id LIKE {q(LEGACY_PREFIX + "%")};'
+    yield f'DELETE FROM "LiteLLM_OrganizationTable" WHERE organization_id IN ({ids}) OR organization_id LIKE {q(LEGACY_PREFIX + "%")};'
+    yield f'DELETE FROM "LiteLLM_EndUserTable" WHERE user_id IN ({ids}) OR user_id LIKE {q(LEGACY_PREFIX + "%")};'
+    yield f'DELETE FROM "LiteLLM_TagTable" WHERE created_by IN ({q(SEED_ACTOR)}, {q(LEGACY_PREFIX + "seed")});'
+    yield f'DELETE FROM "LiteLLM_BudgetTable" WHERE budget_id IN ({ids}) OR budget_id LIKE {q(LEGACY_PREFIX + "%")};'
     yield 'DELETE FROM "LiteLLM_DailyGlobalSpend" WHERE "date" IN (SELECT "date" FROM demo_days);'
     yield from reroll_global_sql("SELECT \"date\" FROM demo_days")
 
@@ -516,25 +575,25 @@ def seed_sql(rng: random.Random, now: datetime) -> Iterator[str]:
     created: Final = (now - timedelta(days=DAYS + 14)).replace(tzinfo=None).isoformat(sep=" ")
 
     yield from insert("LiteLLM_BudgetTable", (
-        {"budget_id": f"{PREFIX}budget-{o.org_id}", "max_budget": o.budget, "budget_duration": "30d",
-         "created_by": f"{PREFIX}seed", "updated_by": f"{PREFIX}seed"} for o in ORGS))
+        {"budget_id": sid(f"budget-{o.org_id}"), "max_budget": o.budget, "budget_duration": "30d",
+         "created_by": SEED_ACTOR, "updated_by": SEED_ACTOR} for o in ORGS))
     yield from insert("LiteLLM_OrganizationTable", (
-        {"organization_id": o.org_id, "organization_alias": o.alias, "budget_id": f"{PREFIX}budget-{o.org_id}",
-         "metadata": {"demo_seed": True}, "models": [], "spend": org_spend[o.org_id],
-         "created_by": f"{PREFIX}seed", "updated_by": f"{PREFIX}seed", "created_at": created} for o in ORGS))
+        {"organization_id": o.org_id, "organization_alias": o.alias, "budget_id": sid(f"budget-{o.org_id}"),
+         "models": [], "spend": org_spend[o.org_id],
+         "created_by": SEED_ACTOR, "updated_by": SEED_ACTOR, "created_at": created} for o in ORGS))
     yield from insert("LiteLLM_TeamTable", (
         {"team_id": t.team_id, "team_alias": t.alias, "organization_id": t.org_id,
          "admins": [u.user_id for u in USERS if u.team_id == t.team_id][:1],
          "members": [u.user_id for u in USERS if u.team_id == t.team_id],
          "members_with_roles": Json([{"role": "admin" if i == 0 else "user", "user_id": u.user_id, "user_email": u.email}
                                 for i, u in enumerate(u for u in USERS if u.team_id == t.team_id)]),
-         "metadata": {"demo_seed": True}, "max_budget": t.budget, "spend": team_spend[t.team_id],
+         "max_budget": t.budget, "spend": team_spend[t.team_id],
          "models": sorted({m for k in KEYS if k.team_id == t.team_id for m in k.models}),  # comprehension-ok: flatten key models
          "budget_duration": "30d", "tpm_limit": 2000000, "rpm_limit": 5000, "created_at": created} for t in TEAMS))
     yield from insert("LiteLLM_UserTable", (
         {"user_id": u.user_id, "user_alias": u.alias, "user_email": u.email, "user_role": u.role, "team_id": u.team_id,
          "teams": [u.team_id], "organization_id": team_of(u.team_id).org_id, "models": [], "spend": user_spend[u.user_id],
-         "max_budget": 1000.0, "metadata": {"demo_seed": True}, "created_at": created} for u in USERS))
+         "max_budget": 1000.0, "created_at": created} for u in USERS))
     yield from insert("LiteLLM_TeamMembership", (
         {"user_id": u.user_id, "team_id": u.team_id, "spend": user_spend[u.user_id], "total_spend": user_spend[u.user_id]}
         for u in USERS))
@@ -542,7 +601,7 @@ def seed_sql(rng: random.Random, now: datetime) -> Iterator[str]:
         {"token": k.token, "key_name": k.key_name, "key_alias": k.alias, "spend": key_spend[k.alias],
          "total_spend": key_spend[k.alias], "models": list(k.models), "user_id": k.user_id, "team_id": k.team_id,
          "organization_id": team_of(k.team_id).org_id, "max_budget": k.budget, "budget_duration": "30d",
-         "tpm_limit": 500000, "rpm_limit": 1000, "metadata": {"demo_seed": True, "tags": [k.tag]},
+         "tpm_limit": 500000, "rpm_limit": 1000, "metadata": {"tags": [k.tag]},
          "created_at": created, "created_by": "default_user_id", "last_active": now.replace(tzinfo=None).isoformat(sep=" "),
          "blocked": False} for k in KEYS))
     yield from insert("LiteLLM_EndUserTable", (
@@ -550,7 +609,7 @@ def seed_sql(rng: random.Random, now: datetime) -> Iterator[str]:
         ' ON CONFLICT ("user_id") DO NOTHING')
     yield from insert("LiteLLM_TagTable", (
         {"tag_name": t, "description": f"{t.replace('-', ' ').title()} traffic", "models": [], "spend": tag_spend.get(t, 0.0),
-         "created_by": f"{PREFIX}seed"} for t in TAGS), ' ON CONFLICT ("tag_name") DO NOTHING')
+         "created_by": SEED_ACTOR} for t in TAGS), ' ON CONFLICT ("tag_name") DO NOTHING')
 
     for table, column in DAILY_TABLES:
         entity = {
@@ -564,16 +623,16 @@ def seed_sql(rng: random.Random, now: datetime) -> Iterator[str]:
 
     yield from (raw_now(s) for s in insert("LiteLLM_DailyGuardrailMetrics", guardrail_metric_rows(rng, now.date())))
 
-    llm_by_day: Final = {c.day: 0 for c in cells}
-    for c in cells:
-        llm_by_day[c.day] += c.requests
-    yield from (raw_now(s) for s in insert("LiteLLM_DailyGatewayRequests", (
-        {"date": day, "category": category, "route": f"{route}#demo", "successful_requests": int(total * share * 0.99),
-         "failed_requests": int(total * share * 0.01), "updated_at": "now()"}
-        for day, total in llm_by_day.items()
-        for category, route, share in (("llm", "/chat/completions", 0.78), ("llm", "/v1/messages", 0.17),
-                                       ("llm", "/embeddings", 0.05), ("mcp", "/mcp", 0.03)))))  # comprehension-ok: day x route grid
-
+    gateway: Final = tuple(gateway_rows(cells))
+    yield from insert("raw_seed.gateway_requests", gateway)
+    yield from (raw_now(s) for s in insert(
+        "LiteLLM_DailyGatewayRequests",
+        (row | {"updated_at": "now()"} for row in gateway),
+        ' ON CONFLICT ("date", "category", "route") DO UPDATE SET '
+        '"successful_requests" = "LiteLLM_DailyGatewayRequests"."successful_requests" + EXCLUDED."successful_requests", '
+        '"failed_requests" = "LiteLLM_DailyGatewayRequests"."failed_requests" + EXCLUDED."failed_requests", '
+        "\"updated_at\" = (NOW() AT TIME ZONE 'UTC')",
+    ))
     yield from insert("LiteLLM_SpendLogs", spend_logs(rng, now))
     yield from reroll_global_sql(f"SELECT DISTINCT \"date\" FROM \"LiteLLM_DailyUserSpend\" WHERE api_key IN "
                                  f"({', '.join(q(k.token) for k in KEYS)})")
@@ -588,7 +647,9 @@ def main() -> int:
     out.write("BEGIN;\n")
     for statement in cleanup_sql():
         out.write(statement + "\n")
-    if not args.cleanup:
+    if args.cleanup:
+        out.write("DROP SCHEMA raw_seed CASCADE;\n")
+    else:
         for statement in seed_sql(random.Random(args.seed), datetime.now(UTC)):
             out.write(statement + "\n")
     out.write("COMMIT;\n")
