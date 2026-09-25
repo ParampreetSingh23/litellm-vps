@@ -486,6 +486,154 @@ def gateway_rows(cells: Sequence[Cell]) -> Iterator[dict[str, object]]:
             }
 
 
+GUARDRAIL_CONFIGS: Final = json.loads(
+    r'''[
+ {
+  "guardrail_name": "PII Masking",
+  "litellm_params": {
+   "guardrail": "litellm_content_filter",
+   "mode": "pre_call",
+   "default_on": false,
+   "patterns": [
+    {
+     "pattern_type": "prebuilt",
+     "pattern_name": "email",
+     "action": "MASK"
+    },
+    {
+     "pattern_type": "prebuilt",
+     "pattern_name": "us_phone",
+     "action": "MASK"
+    },
+    {
+     "pattern_type": "prebuilt",
+     "pattern_name": "credit_card",
+     "action": "MASK"
+    },
+    {
+     "pattern_type": "prebuilt",
+     "pattern_name": "us_ssn",
+     "action": "MASK"
+    },
+    {
+     "pattern_type": "prebuilt",
+     "pattern_name": "passport_india",
+     "action": "MASK"
+    }
+   ]
+  },
+  "guardrail_info": {
+   "type": "PII",
+   "description": "Masks emails, phone numbers, card numbers and passport numbers before prompts reach the model."
+  }
+ },
+ {
+  "guardrail_name": "Prompt Injection Shield",
+  "litellm_params": {
+   "guardrail": "litellm_content_filter",
+   "mode": "pre_call",
+   "default_on": false,
+   "categories": [
+    {
+     "category": "prompt_injection_jailbreak",
+     "enabled": true,
+     "action": "BLOCK",
+     "severity_threshold": "medium"
+    },
+    {
+     "category": "prompt_injection_data_exfiltration",
+     "enabled": true,
+     "action": "BLOCK",
+     "severity_threshold": "medium"
+    },
+    {
+     "category": "prompt_injection_sql",
+     "enabled": true,
+     "action": "BLOCK",
+     "severity_threshold": "medium"
+    }
+   ]
+  },
+  "guardrail_info": {
+   "type": "Security",
+   "description": "Blocks jailbreaks, data-exfiltration attempts and SQL injection in prompts."
+  }
+ },
+ {
+  "guardrail_name": "Secrets Detection",
+  "litellm_params": {
+   "guardrail": "litellm_content_filter",
+   "mode": "pre_call",
+   "default_on": false,
+   "patterns": [
+    {
+     "pattern_type": "prebuilt",
+     "pattern_name": "aws_access_key",
+     "action": "BLOCK"
+    },
+    {
+     "pattern_type": "prebuilt",
+     "pattern_name": "aws_secret_key",
+     "action": "BLOCK"
+    },
+    {
+     "pattern_type": "prebuilt",
+     "pattern_name": "github_token",
+     "action": "BLOCK"
+    },
+    {
+     "pattern_type": "prebuilt",
+     "pattern_name": "slack_token",
+     "action": "BLOCK"
+    },
+    {
+     "pattern_type": "prebuilt",
+     "pattern_name": "generic_api_key",
+     "action": "BLOCK"
+    }
+   ]
+  },
+  "guardrail_info": {
+   "type": "Security",
+   "description": "Stops API keys and cloud credentials from being sent to third-party models."
+  }
+ },
+ {
+  "guardrail_name": "Toxicity Filter",
+  "litellm_params": {
+   "guardrail": "litellm_content_filter",
+   "mode": "post_call",
+   "default_on": false,
+   "categories": [
+    {
+     "category": "harm_toxic_abuse",
+     "enabled": true,
+     "action": "BLOCK",
+     "severity_threshold": "medium"
+    },
+    {
+     "category": "harmful_violence",
+     "enabled": true,
+     "action": "BLOCK",
+     "severity_threshold": "medium"
+    },
+    {
+     "category": "denied_insults",
+     "enabled": true,
+     "action": "BLOCK",
+     "severity_threshold": "medium"
+    }
+   ]
+  },
+  "guardrail_info": {
+   "type": "Content Safety",
+   "description": "Blocks abusive, violent or insulting model responses."
+  }
+ }
+]'''
+)
+
+
 SEED_ACTOR: Final = sid("seed-admin")
 
 
@@ -497,6 +645,7 @@ def all_ids() -> tuple[str, ...]:
         + tuple(u.user_id for u in USERS)
         + tuple(sid(f"user-{n}") for n in ("aarav", "sophia", "daniel", "priya", "lucas", "emma", "kenji", "olivia"))
         + END_USERS
+        + tuple(sid(f"guardrail-{g['guardrail_name']}") for g in GUARDRAIL_CONFIGS)
     )
 
 
@@ -531,6 +680,7 @@ def cleanup_sql() -> Iterator[str]:
            "AND g.successful_requests <= 0 AND g.failed_requests <= 0;")
     yield "TRUNCATE raw_seed.gateway_requests;"
     yield f'DELETE FROM "LiteLLM_VerificationToken" WHERE token IN ({tokens});'
+    yield f'DELETE FROM "LiteLLM_GuardrailsTable" WHERE guardrail_id IN ({ids});'
     yield f'DELETE FROM "LiteLLM_TeamMembership" WHERE user_id IN ({ids}) OR user_id LIKE {q(LEGACY_PREFIX + "%")};'
     yield f'DELETE FROM "LiteLLM_UserTable" WHERE user_id IN ({ids}) OR user_id LIKE {q(LEGACY_PREFIX + "%")};'
     yield f'DELETE FROM "LiteLLM_TeamTable" WHERE team_id IN ({ids}) OR team_id LIKE {q(LEGACY_PREFIX + "%")};'
@@ -623,6 +773,22 @@ def seed_sql(rng: random.Random, now: datetime) -> Iterator[str]:
 
     yield from (raw_now(s) for s in insert("LiteLLM_DailyGuardrailMetrics", guardrail_metric_rows(rng, now.date())))
 
+    yield from (raw_now(s) for s in insert(
+        "LiteLLM_GuardrailsTable",
+        (
+            {
+                "guardrail_id": sid(f"guardrail-{g['guardrail_name']}"),
+                "guardrail_name": g["guardrail_name"],
+                "litellm_params": g["litellm_params"],
+                "guardrail_info": g["guardrail_info"],
+                "status": "active",
+                "created_at": created,
+                "updated_at": "now()",
+            }
+            for g in GUARDRAIL_CONFIGS
+        ),
+        ' ON CONFLICT ("guardrail_name") DO NOTHING',
+    ))
     gateway: Final = tuple(gateway_rows(cells))
     yield from insert("raw_seed.gateway_requests", gateway)
     yield from (raw_now(s) for s in insert(
