@@ -373,6 +373,11 @@ def insert(table: str, rows: Iterable[Mapping[str, object]], on_conflict: str = 
         yield f"INSERT INTO {target} ({columns}) VALUES ({values}){on_conflict};"
 
 
+def upsert(table: str, row: Mapping[str, object], conflict_column: str) -> str:
+    updates: Final = ", ".join(f'"{c}" = EXCLUDED."{c}"' for c in row if c != conflict_column)
+    return next(insert(table, (row,), f' ON CONFLICT ("{conflict_column}") DO UPDATE SET {updates}'))
+
+
 @dataclass(frozen=True, slots=True)
 class Cell:
     day: str
@@ -1301,7 +1306,7 @@ def seed_sql(rng: random.Random, now: datetime) -> Iterator[str]:
         '"failed_requests" = "LiteLLM_DailyGatewayRequests"."failed_requests" + EXCLUDED."failed_requests", '
         "\"updated_at\" = (NOW() AT TIME ZONE 'UTC')",
     ))
-    yield from insert("LiteLLM_SpendLogs", spend_logs(rng, now))
+    yield from (upsert("LiteLLM_SpendLogs", row, "request_id") for row in spend_logs(rng, now))
     yield from governance_seed_sql(rng, now)
     yield from reroll_global_sql(f"SELECT DISTINCT \"date\" FROM \"LiteLLM_DailyUserSpend\" WHERE api_key IN "
                                  f"({', '.join(q(k.token) for k in KEYS)})")
