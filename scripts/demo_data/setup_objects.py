@@ -32,27 +32,29 @@ MODELS: Final = (
 AUTO_ROUTERS: Final = (
     ("smart-router", {"SIMPLE": "gemini-3.8-flash", "MEDIUM": "gpt-5.4-mini", "COMPLEX": "claude-sonnet-5",
                       "REASONING": "claude-opus-5-5"}, "gpt-5.4-mini"),
-    ("support-auto-router", {"SIMPLE": "claude-haiku-4-5", "MEDIUM": "gpt-5.4-mini", "COMPLEX": "gpt-5.6"},
-     "claude-haiku-4-5"),
-    ("code-auto-router", {"SIMPLE": "gpt-5.4-mini", "MEDIUM": "claude-sonnet-5", "COMPLEX": "claude-sonnet-5",
-                          "REASONING": "claude-opus-5-5"}, "claude-sonnet-5"),
+    ("student-success-router", {"SIMPLE": "claude-haiku-4-5", "MEDIUM": "gpt-5.4-mini", "COMPLEX": "claude-sonnet-5"},
+     "gpt-5.4-mini"),
+    ("finance-forecast-router", {"SIMPLE": "gpt-5.4-mini", "MEDIUM": "claude-sonnet-5", "COMPLEX": "gpt-5.6",
+                                 "REASONING": "claude-opus-5-5"}, "claude-sonnet-5"),
 )
 
 PROMPTS: Final = (
-    ("customer_support_reply", "claude-haiku-4-5", 0.3, ("customer_name", "issue"),
-     "You are a friendly, concise support agent for RAW by Rabbitt. Resolve the issue in under 120 words and "
-     "offer one clear next step.",
-     "Customer {{customer_name}} wrote: {{issue}}"),
-    ("pull_request_review", "claude-sonnet-5", 0.1, ("diff",),
-     "You are a senior engineer. Review the diff for bugs, security issues and readability. List findings by "
-     "severity with file and line.",
-     "Review this pull request diff:\n{{diff}}"),
-    ("sales_follow_up_email", "gpt-5.4-mini", 0.7, ("prospect_name", "company", "meeting_notes"),
-     "You write short, warm B2B follow-up emails. Keep it under 150 words with one call to action.",
-     "Write a follow-up email to {{prospect_name}} at {{company}}. Notes from our call: {{meeting_notes}}"),
-    ("knowledge_base_answer", "gemini-3.8-flash", 0.2, ("question", "context"),
-     "Answer only from the provided context. If the answer is not there, say you don't know. Cite the source.",
-     "Context:\n{{context}}\n\nQuestion: {{question}}"),
+    ("early_warning_risk_summary", "claude-sonnet-5", 0.1, ("course", "canvas_signals"),
+     "You support university advisors. From Canvas engagement and grade signals, rate academic risk as low, medium "
+     "or high, list the drivers and suggest one outreach action. Never use or infer demographic attributes.",
+     "Course: {{course}}\nCanvas signals: {{canvas_signals}}"),
+    ("student_outreach_email", "claude-haiku-4-5", 0.4, ("student_first_name", "advisor_name", "concern"),
+     "You write short, supportive emails from an academic advisor. Be warm, avoid judgment, and offer one campus "
+     "resource and a meeting link. Keep it under 120 words.",
+     "Write to {{student_first_name}} from {{advisor_name}} about: {{concern}}"),
+    ("budget_variance_explainer", "gpt-5.6", 0.2, ("department", "peoplesoft_actuals", "budget"),
+     "You are a university finance analyst. Forecast year-end spend from PeopleSoft actuals, explain the variance "
+     "to budget in plain language and give an 80% range.",
+     "Department: {{department}}\nBudget: {{budget}}\nActuals to date: {{peoplesoft_actuals}}"),
+    ("bias_audit_review", "claude-opus-5-5", 0.0, ("model_name", "group_metrics"),
+     "You are an AI fairness auditor. Compute disparate impact ratios (four-fifths rule), flag any group below 0.8 "
+     "and explain likely causes and mitigations. Return JSON with metric, groups, status and notes.",
+     "Model: {{model_name}}\nPer-group outcome metrics: {{group_metrics}}"),
 )
 
 

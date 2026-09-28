@@ -114,50 +114,59 @@ MODELS: Final = {
 }
 
 ORGS: Final = (
-    Org(sid("org-product"), "Product & Engineering", 12000.0),
-    Org(sid("org-ops"), "Operations", 6000.0),
+    Org(sid("org-academic-affairs"), "Academic Affairs", 9000.0),
+    Org(sid("org-admin-finance"), "Administration & Finance", 7000.0),
+    Org(sid("org-it-compliance"), "IT, Security & Compliance", 5000.0),
 )
 
 TEAMS: Final = (
-    Team(sid("team-eng"), "Engineering", sid("org-product"), 5000.0),
-    Team(sid("team-ds"), "Data Science", sid("org-product"), 3000.0),
-    Team(sid("team-support"), "Customer Support", sid("org-ops"), 2500.0),
-    Team(sid("team-marketing"), "Marketing", sid("org-ops"), 1500.0),
-    Team(sid("team-sales"), "Sales", sid("org-ops"), 800.0),
+    Team(sid("team-student-success"), "Student Success", sid("org-academic-affairs"), 3000.0),
+    Team(sid("team-teaching-learning"), "Teaching & Learning (Canvas)", sid("org-academic-affairs"), 2500.0),
+    Team(sid("team-institutional-research"), "Institutional Research", sid("org-academic-affairs"), 2000.0),
+    Team(sid("team-finance"), "Finance & Budget Office (PeopleSoft)", sid("org-admin-finance"), 2500.0),
+    Team(sid("team-enrollment"), "Enrollment & Advising (Salesforce)", sid("org-admin-finance"), 1800.0),
+    Team(sid("team-ai-governance"), "AI Governance & Risk", sid("org-it-compliance"), 2000.0),
 )
 
 USERS: Final = (
-    User(sid("user-parampreet"), "parampreet.singh@rabbitt.ai", "Parampreet Singh", sid("team-eng"), "internal_user"),
-    User(sid("user-hiten"), "hiten.singh@rabbitt.ai", "Hiten Singh", sid("team-eng"), "internal_user"),
-    User(sid("user-arpan"), "arpan.mehta@rabbitt.ai", "Arpan Mehta", sid("team-ds"), "internal_user"),
-    User(sid("user-diya"), "diya.ahuja@rabbitt.ai", "Diya Ahuja", sid("team-ds"), "internal_user"),
-    User(sid("user-hemant"), "hemant.sardana@rabbitt.ai", "Hemant Sardana", sid("team-support"), "internal_user"),
-    User(sid("user-pranoor"), "pranoor.singh@rabbitt.ai", "Pranoor Singh", sid("team-support"), "internal_user"),
-    User(sid("user-mudit"), "mudit.nag@rabbitt.ai", "Mudit Nag", sid("team-marketing"), "internal_user"),
-    User(sid("user-myiesha"), "myiesha.jain@rabbitt.ai", "Myiesha Jain", sid("team-marketing"), "internal_user"),
-    User(sid("user-mohit"), "mohit.jangra@rabbitt.ai", "Mohit Jangra", sid("team-sales"), "internal_user"),
-    User(sid("user-vishesh"), "vishesh.arora@rabbitt.ai", "Vishesh Arora", sid("team-sales"), "internal_user"),
+    User(sid("user-parampreet"), "parampreet.singh@rabbitt.ai", "Parampreet Singh", sid("team-ai-governance"),
+         "internal_user"),
+    User(sid("user-hiten"), "hiten.singh@rabbitt.ai", "Hiten Singh", sid("team-ai-governance"), "internal_user"),
+    User(sid("user-arpan"), "arpan.mehta@rabbitt.ai", "Arpan Mehta", sid("team-institutional-research"),
+         "internal_user"),
+    User(sid("user-diya"), "diya.ahuja@rabbitt.ai", "Diya Ahuja", sid("team-institutional-research"), "internal_user"),
+    User(sid("user-hemant"), "hemant.sardana@rabbitt.ai", "Hemant Sardana", sid("team-student-success"),
+         "internal_user"),
+    User(sid("user-pranoor"), "pranoor.singh@rabbitt.ai", "Pranoor Singh", sid("team-teaching-learning"),
+         "internal_user"),
+    User(sid("user-mudit"), "mudit.nag@rabbitt.ai", "Mudit Nag", sid("team-finance"), "internal_user"),
+    User(sid("user-myiesha"), "myiesha.jain@rabbitt.ai", "Myiesha Jain", sid("team-finance"), "internal_user"),
+    User(sid("user-mohit"), "mohit.jangra@rabbitt.ai", "Mohit Jangra", sid("team-enrollment"), "internal_user"),
+    User(sid("user-vishesh"), "vishesh.arora@rabbitt.ai", "Vishesh Arora", sid("team-enrollment"), "internal_user"),
 )
 
 KEYS: Final = (
-    Key("support-chatbot-prod", sid("user-hemant"), sid("team-support"), ("claude-haiku-4-5", "gpt-5.4-mini"),
-        "customer-support", "/chat/completions", 1900, 2600, 320, 0.62, True, False, 900.0, "support"),
-    Key("support-ticket-triage", sid("user-pranoor"), sid("team-support"), ("gpt-5.4-mini",),
-        "customer-support", "/chat/completions", 1100, 900, 60, 0.35, True, False, 300.0, "triage"),
-    Key("code-assistant", sid("user-parampreet"), sid("team-eng"), ("claude-sonnet-5", "gpt-5.6"),
-        "engineering", "/v1/messages", 650, 14000, 1100, 0.71, False, False, 2500.0, "code"),
-    Key("ci-pr-reviewer", sid("user-hiten"), sid("team-eng"), ("claude-sonnet-5",),
-        "engineering", "/v1/messages", 240, 9000, 700, 0.55, False, False, 900.0, "review"),
-    Key("rag-knowledge-base", sid("user-arpan"), sid("team-ds"), ("gemini-3.8-flash", "text-embedding-3-small"),
-        "rag-pipeline", "/chat/completions", 1400, 5200, 380, 0.18, False, True, 1200.0, "rag"),
-    Key("model-eval-harness", sid("user-diya"), sid("team-ds"), ("claude-opus-5-5", "gpt-5.6"),
-        "evaluation", "/chat/completions", 90, 6000, 1500, 0.05, False, False, 1500.0, "eval"),
-    Key("content-generator", sid("user-mudit"), sid("team-marketing"), ("gpt-5.6", "claude-sonnet-5"),
-        "marketing", "/chat/completions", 210, 1800, 1400, 0.25, True, False, 800.0, "content"),
-    Key("seo-summarizer", sid("user-myiesha"), sid("team-marketing"), ("gemini-3.8-flash",),
-        "marketing", "/chat/completions", 380, 4200, 250, 0.1, False, True, 250.0, "summary"),
-    Key("sales-email-assistant", sid("user-mohit"), sid("team-sales"), ("gpt-5.4-mini",),
-        "sales", "/chat/completions", 300, 1500, 420, 0.4, True, False, 200.0, "email"),
+    Key("canvas-early-warning", sid("user-hemant"), sid("team-student-success"), ("claude-sonnet-5", "gpt-5.4-mini"),
+        "student-success", "/chat/completions", 1500, 4800, 450, 0.58, True, False, 900.0, "early_warning"),
+    Key("canvas-grade-monitor", sid("user-pranoor"), sid("team-teaching-learning"), ("gpt-5.4-mini",),
+        "teaching-learning", "/chat/completions", 1300, 3200, 220, 0.52, True, False, 400.0, "grades"),
+    Key("peoplesoft-budget-forecast", sid("user-mudit"), sid("team-finance"), ("claude-opus-5-5", "gpt-5.6"),
+        "finance", "/chat/completions", 180, 12000, 1600, 0.66, False, False, 1500.0, "forecast"),
+    Key("peoplesoft-spend-analyst", sid("user-myiesha"), sid("team-finance"), ("claude-sonnet-5",),
+        "finance", "/v1/messages", 420, 8000, 900, 0.6, False, False, 900.0, "spend"),
+    Key("salesforce-advising-crm", sid("user-mohit"), sid("team-enrollment"), ("claude-haiku-4-5", "gpt-5.4-mini"),
+        "enrollment", "/chat/completions", 900, 2400, 420, 0.4, True, False, 500.0, "advising"),
+    Key("admissions-inquiry-bot", sid("user-vishesh"), sid("team-enrollment"), ("gemini-3.8-flash",),
+        "enrollment", "/chat/completions", 1200, 1800, 260, 0.35, True, True, 250.0, "admissions"),
+    Key("ir-reporting-dashboard", sid("user-arpan"), sid("team-institutional-research"),
+        ("gemini-3.8-flash", "text-embedding-3-small"),
+        "reporting", "/chat/completions", 700, 6400, 500, 0.2, False, True, 700.0, "reporting"),
+    Key("retention-risk-model", sid("user-diya"), sid("team-institutional-research"), ("claude-sonnet-5", "gpt-5.6"),
+        "predictive-analytics", "/chat/completions", 260, 9000, 800, 0.5, False, False, 1000.0, "retention"),
+    Key("bias-audit-evaluator", sid("user-parampreet"), sid("team-ai-governance"), ("claude-opus-5-5", "gpt-5.6"),
+        "ai-governance", "/chat/completions", 120, 6000, 1400, 0.05, False, False, 1200.0, "bias_audit"),
+    Key("model-monitoring-evals", sid("user-hiten"), sid("team-ai-governance"), ("claude-sonnet-5",),
+        "ai-governance", "/v1/messages", 200, 5000, 700, 0.3, False, False, 600.0, "monitoring"),
 )
 
 END_USERS: Final = tuple(customer_id(f"customer-{n:03d}") for n in (101, 117, 142, 203, 256, 318, 377, 402))
@@ -167,54 +176,72 @@ GUARDRAILS: Final = (
     ("Prompt Injection Shield", 0.008, 55.0),
     ("Secrets Detection", 0.004, 12.0),
     ("Toxicity Filter", 0.012, 41.0),
+    ("Bias & Fairness Filter", 0.006, 47.0),
 )
+STUDENT_DATA_USE_CASES: Final = frozenset({"early_warning", "grades", "advising", "admissions", "retention"})
 
 CONVERSATIONS: Final[Mapping[str, Sequence[tuple[str, str]]]] = {
-    "support": (
-        ("I was charged twice for my subscription this month. Can you help?",
-         "I'm sorry about the double charge. I can see two payments on your account from the 3rd. I've flagged the duplicate for a refund, which usually lands in 3-5 business days."),
-        ("How do I reset my password? The link in the email expired.",
-         "Reset links expire after 30 minutes. I've sent a fresh link to your registered email. If it doesn't arrive in 5 minutes, check your spam folder."),
-        ("Where is my order #48213? It says shipped but hasn't moved in 4 days.",
-         "Order #48213 is at the regional sorting hub and is scheduled for delivery tomorrow. I've added a note to prioritize it."),
+    "early_warning": (
+        ("Student [STUDENT_ID_REDACTED] in BIO 101: missed 3 of the last 5 Canvas assignments, quiz average dropped "
+         "from 82% to 61%, last login 9 days ago. Assess risk and suggest an outreach plan.",
+         '{"risk_level": "high", "drivers": ["missing assignments", "grade decline", "low LMS engagement"], '
+         '"recommended_action": "Advisor outreach within 48 hours, refer to tutoring center, flag for instructor check-in"}'),
+        ("Summarize this week's early-warning flags for the College of Engineering advisors.",
+         "42 students flagged (up 8 from last week). 61% are first-year students; the most common driver is missing "
+         "coursework in MATH 151. 11 are high risk and need contact within 48 hours."),
     ),
-    "triage": (
-        ("Classify this ticket: 'App crashes when uploading a PDF larger than 20MB on Android.'",
-         '{"category": "bug", "component": "mobile-upload", "priority": "high", "team": "mobile"}'),
-        ("Classify this ticket: 'Can I get an invoice with my company VAT number?'",
-         '{"category": "billing", "component": "invoices", "priority": "low", "team": "finance"}'),
+    "grades": (
+        ("Canvas gradebook export for CHEM 210, section 3. Identify students whose grade trajectory projects below a C.",
+         "7 of 48 students project below a C at the current trend. Five share a pattern of low lab report scores; "
+         "consider a lab-writing workshop before midterm."),
+        ("Explain to the instructor why the model flagged this grade pattern, in plain language.",
+         "The flag comes from three consecutive assessments below the class median plus two late submissions. It does "
+         "not use demographic data. Confidence is moderate because only 4 graded items exist so far."),
     ),
-    "code": (
-        ("Refactor this function to avoid the N+1 query when loading orders with their line items.",
-         "Load the line items in one query with a join and group them in memory. Here's the updated function using `prefetch_related('items')`, which cuts it from 1+N queries to 2."),
-        ("Why does this React effect run twice in development?",
-         "React 18 Strict Mode mounts, unmounts and remounts components in development to surface missing cleanups. Add a cleanup function to your effect and it will behave correctly in both modes."),
+    "forecast": (
+        ("Using the PeopleSoft GL actuals for Q1-Q3, forecast year-end spend for the Facilities department.",
+         "Projected year-end spend is $4.82M against a $4.6M budget (+4.8%). The overrun is driven by utilities "
+         "(+11% YoY). 80% interval: $4.71M to $4.95M."),
+        ("Which departments are most likely to exceed budget this fiscal year?",
+         "Three departments project over budget: Facilities (+4.8%), Athletics (+3.1%) and IT Services (+2.2%). "
+         "All others are within 2% of plan."),
     ),
-    "review": (
-        ("Review this pull request diff for security issues.",
-         "Two findings: the new endpoint builds SQL with string formatting (use parameters), and the upload handler trusts the client-provided content type. Everything else looks good."),
+    "spend": (
+        ("Flag unusual vendor payments in the PeopleSoft AP extract for September.",
+         "Two anomalies: a duplicate invoice #AP-77412 paid twice ($18,400 each) and a new vendor with three payments "
+         "just under the $10,000 approval threshold. Recommend review by Procurement."),
     ),
-    "rag": (
-        ("What is our refund policy for annual plans? Use the knowledge base.",
-         "Annual plans can be refunded in full within 30 days of purchase. After 30 days, refunds are prorated for the unused months (source: Billing Policy v4, section 2.3)."),
-        ("Summarize the onboarding steps for a new enterprise customer.",
-         "1) Kickoff call and success plan, 2) SSO and SCIM setup, 3) data import, 4) admin training, 5) 30-day health review (source: Enterprise Onboarding Playbook)."),
+    "advising": (
+        ("Draft an advisor note in Salesforce for a student considering dropping below full-time enrollment.",
+         "Discussed reducing to 9 credits. Reviewed impact on financial aid eligibility and on-time graduation. "
+         "Student will meet Financial Aid before the add/drop deadline. Follow-up scheduled in 7 days."),
     ),
-    "eval": (
-        ("Grade this answer for factual accuracy on a 1-5 scale and explain.",
-         "Score: 4/5. The answer is correct about the main causes but omits the 2023 policy change mentioned in the reference."),
+    "admissions": (
+        ("What is the application deadline for fall transfer students, and do you accept AP credit?",
+         "The fall transfer deadline is March 1. AP scores of 4 or 5 usually earn course credit; the Registrar "
+         "makes the final evaluation after you enroll."),
     ),
-    "content": (
-        ("Write a LinkedIn post announcing our new analytics dashboard.",
-         "Big news: our new analytics dashboard is live. See spend, usage and performance in one place, with real-time insights for every team..."),
+    "reporting": (
+        ("Summarize fall enrollment and retention for the board dashboard.",
+         "Fall enrollment is 18,240 (+2.1% YoY). First-year to second-year retention is 84.6%, up 1.3 points. "
+         "Pell-eligible retention trails the overall rate by 4.2 points."),
     ),
-    "summary": (
-        ("Summarize this 2,000-word blog post into 3 bullet points for the meta description.",
-         "- How AI gateways cut LLM costs by 30-40%\n- Caching and smart routing explained\n- A checklist to get started in a week"),
+    "retention": (
+        ("Score retention risk for the incoming cohort and list the top contributing features.",
+         "Mean predicted retention is 85.1%. Top features: first-term GPA, credit load, Canvas engagement and "
+         "unmet financial need. Protected attributes are excluded from the model inputs."),
     ),
-    "email": (
-        ("Draft a follow-up email to a prospect who attended our webinar yesterday.",
-         "Subject: Great to have you at yesterday's webinar\n\nHi Sam, thanks for joining us. As promised, here are the slides and a 14-day trial link..."),
+    "bias_audit": (
+        ("Audit the early-warning model outputs for disparate impact across student groups.",
+         '{"metric": "flag_rate_ratio", "min_group_ratio": 0.86, "threshold": 0.8, "status": "pass", '
+         '"note": "First-generation students are flagged 1.16x more often; consistent with ground-truth outcomes."}'),
+        ("Check this advising response for biased or stereotyping language.",
+         "No biased language found. The response recommends resources based on academic signals only."),
+    ),
+    "monitoring": (
+        ("Compare this week's grade-risk predictions against last term's baseline and report drift.",
+         "Population stability index is 0.07 (stable, below 0.1). Precision at top 10% is 0.71 vs 0.74 baseline. "
+         "No retraining needed; recheck after midterms."),
     ),
 }
 
@@ -369,7 +396,7 @@ def spend_logs(rng: random.Random, now: datetime) -> Iterator[dict[str, object]]
         team = team_of(key.team_id)
         user = user_of(key.user_id)
         request_id = str(uuid.UUID(int=rng.getrandbits(128)))
-        session = sid(f"session-{n // 4:05d}") if key.use_case in ("support", "code") else None
+        session = sid(f"session-{n // 4:05d}") if key.use_case in ("early_warning", "advising") else None
         guardrails = [
             {
                 "guardrail_name": name,
@@ -380,7 +407,7 @@ def spend_logs(rng: random.Random, now: datetime) -> Iterator[dict[str, object]]
                 "end_time": start.timestamp() + latency / 1000,
             }
             for name, rate, latency in GUARDRAILS[:2]
-        ] if key.use_case in ("support", "rag", "email") else []
+        ] if key.use_case in STUDENT_DATA_USE_CASES else []
         metadata: dict[str, object] = {
             "status": "failure" if failed else "success",
             "user_api_key_alias": key.alias,
@@ -519,12 +546,18 @@ GUARDRAIL_CONFIGS: Final = json.loads(
      "pattern_type": "prebuilt",
      "pattern_name": "passport_india",
      "action": "MASK"
+    },
+    {
+     "pattern_type": "regex",
+     "name": "student_id",
+     "pattern": "\\b[SU]\\d{7,9}\\b",
+     "action": "MASK"
     }
    ]
   },
   "guardrail_info": {
    "type": "PII",
-   "description": "Masks emails, phone numbers, card numbers and passport numbers before prompts reach the model."
+   "description": "Masks student IDs, SSNs, emails, phone numbers and card numbers before prompts reach the model (FERPA)."
   }
  },
  {
@@ -628,6 +661,25 @@ GUARDRAIL_CONFIGS: Final = json.loads(
   "guardrail_info": {
    "type": "Content Safety",
    "description": "Blocks abusive, violent or insulting model responses."
+  }
+ },
+ {
+  "guardrail_name": "Bias & Fairness Filter",
+  "litellm_params": {
+   "guardrail": "litellm_content_filter",
+   "mode": "post_call",
+   "default_on": false,
+   "categories": [
+    {"category": "bias_racial", "enabled": true, "action": "BLOCK", "severity_threshold": "medium"},
+    {"category": "bias_gender", "enabled": true, "action": "BLOCK", "severity_threshold": "medium"},
+    {"category": "bias_religious", "enabled": true, "action": "BLOCK", "severity_threshold": "medium"},
+    {"category": "bias_sexual_orientation", "enabled": true, "action": "BLOCK", "severity_threshold": "medium"},
+    {"category": "age_discrimination", "enabled": true, "action": "BLOCK", "severity_threshold": "medium"}
+   ]
+  },
+  "guardrail_info": {
+   "type": "Ethics & Compliance",
+   "description": "Blocks model responses with racial, gender, religious, sexual-orientation or age bias."
   }
  }
 ]'''
