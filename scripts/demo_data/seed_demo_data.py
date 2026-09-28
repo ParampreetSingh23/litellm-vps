@@ -115,7 +115,7 @@ MODELS: Final = {
     )
 }
 
-EMAIL_DOMAIN: Final = "northfield-university.edu"
+EMAIL_DOMAIN: Final = "rabbitt.ai"
 
 ORGS: Final = (
     Org(sid("org-academic-affairs"), "Academic Affairs", 10000.0),
@@ -141,36 +141,36 @@ TEAMS: Final = (
 
 
 def staff(handle: str, name: str, team: str) -> User:
-    return User(sid(f"user-{handle}"), f"{handle.replace('-', '.')}@{EMAIL_DOMAIN}", name, sid(f"team-{team}"),
+    return User(sid(f"user-{handle}"), f"{name.lower().replace(' ', '.')}@{EMAIL_DOMAIN}", name, sid(f"team-{team}"),
                 "internal_user")
 
 
 USERS: Final = (
-    staff("maria-alvarez", "Maria Alvarez", "student-success"),
-    staff("james-okafor", "James Okafor", "student-success"),
+    staff("maria-alvarez", "Ananya Sharma", "student-success"),
+    staff("james-okafor", "Rohan Iyer", "student-success"),
     staff("priya-raman", "Priya Raman", "academic-technology"),
-    staff("tom-becker", "Tom Becker", "academic-technology"),
-    staff("lena-hoffman", "Lena Hoffman", "institutional-research"),
-    staff("daniel-kim", "Daniel Kim", "institutional-research"),
-    staff("sofia-rossi", "Sofia Rossi", "enrollment"),
-    staff("marcus-reed", "Marcus Reed", "enrollment"),
-    staff("grace-liu", "Grace Liu", "finance"),
-    staff("robert-hayes", "Robert Hayes", "finance"),
-    staff("aisha-bello", "Aisha Bello", "hr"),
-    staff("emily-carter", "Emily Carter", "communications"),
-    staff("noah-fischer", "Noah Fischer", "communications"),
-    staff("kevin-osei", "Kevin Osei", "service-desk"),
-    staff("hannah-price", "Hannah Price", "service-desk"),
-    staff("luis-moreno", "Luis Moreno", "service-desk"),
-    staff("sarah-nguyen", "Sarah Nguyen", "infosec"),
-    staff("omar-haddad", "Omar Haddad", "infosec"),
-    staff("ethan-walsh", "Ethan Walsh", "software-dev"),
-    staff("mei-tanaka", "Mei Tanaka", "software-dev"),
+    staff("tom-becker", "Vikram Nair", "academic-technology"),
+    staff("lena-hoffman", "Kavya Menon", "institutional-research"),
+    staff("daniel-kim", "Aditya Joshi", "institutional-research"),
+    staff("sofia-rossi", "Sneha Kulkarni", "enrollment"),
+    staff("marcus-reed", "Rahul Verma", "enrollment"),
+    staff("grace-liu", "Isha Gupta", "finance"),
+    staff("robert-hayes", "Karthik Subramanian", "finance"),
+    staff("aisha-bello", "Meera Pillai", "hr"),
+    staff("emily-carter", "Divya Rao", "communications"),
+    staff("noah-fischer", "Siddharth Bose", "communications"),
+    staff("kevin-osei", "Ravi Shankar", "service-desk"),
+    staff("hannah-price", "Neha Kapoor", "service-desk"),
+    staff("luis-moreno", "Varun Chatterjee", "service-desk"),
+    staff("sarah-nguyen", "Pooja Deshpande", "infosec"),
+    staff("omar-haddad", "Nikhil Agarwal", "infosec"),
+    staff("ethan-walsh", "Harsh Malhotra", "software-dev"),
+    staff("mei-tanaka", "Tanvi Shetty", "software-dev"),
     staff("arjun-mehta", "Arjun Mehta", "software-dev"),
-    staff("claire-dubois", "Claire Dubois", "research-computing"),
-    staff("samuel-adeyemi", "Samuel Adeyemi", "research-computing"),
-    staff("julia-novak", "Julia Novak", "libraries"),
-    staff("ben-harper", "Ben Harper", "libraries"),
+    staff("claire-dubois", "Shreya Krishnan", "research-computing"),
+    staff("samuel-adeyemi", "Abhishek Singh", "research-computing"),
+    staff("julia-novak", "Lakshmi Venkatesh", "libraries"),
+    staff("ben-harper", "Kunal Saxena", "libraries"),
 )
 
 
