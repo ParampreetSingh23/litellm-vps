@@ -230,7 +230,30 @@ GUARDRAILS: Final = (
     ("Toxicity Filter", 0.012, 41.0),
     ("Responsible AI Filter", 0.006, 47.0),
 )
-RESTRICTED_DATA_USE_CASES: Final = frozenset({"engagement", "advising", "admissions", "hr"})
+GUARDRAIL_STATS: Final = MappingProxyType({name: (rate, latency) for name, rate, latency in GUARDRAILS})
+POST_CALL_GUARDRAILS: Final = frozenset({"Toxicity Filter", "Responsible AI Filter"})
+GUARDRAIL_REASONS: Final = MappingProxyType({
+    "PII Masking": "Masked 1 STUDENT_ID and 1 EMAIL before the request reached the model",
+    "Prompt Injection Shield": "Blocked: prompt matched prompt_injection_jailbreak (severity medium)",
+    "Secrets Detection": "Blocked: request contained a generic_api_key pattern",
+    "Toxicity Filter": "Blocked: response matched denied_insults (severity medium)",
+    "Responsible AI Filter": "Blocked: response matched bias_gender (severity medium)",
+})
+RESTRICTED_GUARDRAILS: Final = ("PII Masking", "Prompt Injection Shield", "Responsible AI Filter")
+ENGINEERING_GUARDRAILS: Final = ("Secrets Detection", "Prompt Injection Shield")
+PUBLIC_CONTENT_GUARDRAILS: Final = ("Prompt Injection Shield", "Toxicity Filter", "Responsible AI Filter")
+GUARDRAILS_BY_USE_CASE: Final = MappingProxyType({
+    "engagement": RESTRICTED_GUARDRAILS,
+    "advising": RESTRICTED_GUARDRAILS,
+    "admissions": PUBLIC_CONTENT_GUARDRAILS,
+    "hr": RESTRICTED_GUARDRAILS,
+    "helpdesk": ("PII Masking", "Prompt Injection Shield", "Toxicity Filter"),
+    "code": ENGINEERING_GUARDRAILS,
+    "review": ENGINEERING_GUARDRAILS,
+    "secops": ENGINEERING_GUARDRAILS,
+    "content": PUBLIC_CONTENT_GUARDRAILS,
+    "translation": ("Toxicity Filter",),
+})
 SESSION_USE_CASES: Final = frozenset({"helpdesk", "advising", "code"})
 
 CONVERSATIONS: Final[Mapping[str, Sequence[tuple[str, str]]]] = {
@@ -503,6 +526,27 @@ def user_of(user_id: str) -> User:
     return next(u for u in USERS if u.user_id == user_id)
 
 
+def guardrail_run(name: str, intervened: bool, jitter: float, start: datetime) -> dict[str, object]:
+    latency: Final = GUARDRAIL_STATS[name][1] * jitter / 1000
+    return {
+        "guardrail_name": name,
+        "guardrail_mode": "post_call" if name in POST_CALL_GUARDRAILS else "pre_call",
+        "guardrail_status": "guardrail_intervened" if intervened else "success",
+        "guardrail_response": GUARDRAIL_REASONS[name] if intervened else None,
+        "duration": round(latency, 4),
+        "start_time": start.timestamp(),
+        "end_time": start.timestamp() + latency,
+    }
+
+
+def guardrail_index_rows(logs: Sequence[Mapping[str, object]]) -> Iterator[dict[str, object]]:
+    for log in logs:
+        metadata = log["metadata"]
+        runs = metadata["guardrail_information"] if isinstance(metadata, dict) else []
+        for run in runs:
+            yield {"request_id": log["request_id"], "guardrail_id": run["guardrail_name"], "start_time": log["startTime"]}
+
+
 def spend_logs(rng: random.Random, now: datetime) -> Iterator[dict[str, object]]:
     weights: Final = [k.daily_requests for k in KEYS]
     for n in range(LOG_DAYS * LOGS_PER_DAY):
@@ -522,16 +566,9 @@ def spend_logs(rng: random.Random, now: datetime) -> Iterator[dict[str, object]]
         request_id = str(uuid.UUID(int=rng.getrandbits(128)))
         session = sid(f"session-{n // 4:05d}") if key.use_case in SESSION_USE_CASES else None
         guardrails = [
-            {
-                "guardrail_name": name,
-                "guardrail_mode": "pre_call",
-                "guardrail_status": "guardrail_intervened" if rng.random() < rate else "success",
-                "duration": round(latency / 1000 * rng.uniform(0.7, 1.3), 4),
-                "start_time": start.timestamp(),
-                "end_time": start.timestamp() + latency / 1000,
-            }
-            for name, rate, latency in GUARDRAILS[:2]
-        ] if key.use_case in RESTRICTED_DATA_USE_CASES else []
+            guardrail_run(name, rng.random() < GUARDRAIL_STATS[name][0], rng.uniform(0.7, 1.3), start)
+            for name in GUARDRAILS_BY_USE_CASE.get(key.use_case, ("Prompt Injection Shield",))
+        ]
         metadata: dict[str, object] = {
             "status": "failure" if failed else "success",
             "user_api_key_alias": key.alias,
@@ -551,7 +588,7 @@ def spend_logs(rng: random.Random, now: datetime) -> Iterator[dict[str, object]]
                 "error_message": f"{model.provider} rate limit exceeded, retried on fallback deployment",
             }
         messages = [
-            {"role": "system", "content": "You are a helpful assistant for RAW by Rabbitt customers."},
+            {"role": "system", "content": "You are a helpful assistant for university staff and students."},
             {"role": "user", "content": question},
         ]
         response = {} if failed else {
@@ -1163,6 +1200,31 @@ def governance_seed_sql(rng: random.Random, now: datetime) -> Iterator[str]:
     yield from chain.from_iterable(insert(table, (row,)) for table, row in shadow_rows(rng, now))
 
 
+def other_guardrail_metrics_sql(today: date) -> Iterator[str]:
+    """Give guardrails the seeder doesn't own 30 days of metrics, recorded in raw_seed so cleanup can undo them."""
+    ours: Final = ", ".join(q(g["guardrail_name"]) for g in GUARDRAIL_CONFIGS)
+    start: Final = (today - timedelta(days=DAYS - 1)).isoformat()
+    yield (
+        "WITH days AS (SELECT d::date AS day, row_number() OVER (ORDER BY d) AS n "
+        f"FROM generate_series({q(start)}::date, {q(today.isoformat())}::date, interval '1 day') d), "
+        f'targets AS (SELECT guardrail_name AS gid FROM "LiteLLM_GuardrailsTable" WHERE guardrail_name NOT IN ({ours})), '
+        "sized AS (SELECT t.gid, to_char(d.day, 'YYYY-MM-DD') AS date, "
+        "((1500 + 30 * d.n + ('x' || substr(md5(t.gid || d.day), 1, 4))::bit(16)::int % 700) "
+        "* CASE WHEN extract(isodow FROM d.day) >= 6 THEN 0.55 ELSE 1 END)::bigint AS evaluated, "
+        "0.003 + ('x' || substr(md5(d.day || t.gid), 1, 4))::bit(16)::int % 1500 / 100000.0 AS rate, "
+        "15 + ('x' || substr(md5(t.gid), 1, 4))::bit(16)::int % 50 AS latency "
+        "FROM targets t CROSS JOIN days d), "
+        "counted AS (SELECT *, (evaluated * rate)::bigint AS blocked, (evaluated * rate * 0.5)::bigint AS flagged "
+        "FROM sized), "
+        'ins AS (INSERT INTO "LiteLLM_DailyGuardrailMetrics" (guardrail_id, date, requests_evaluated, passed_count, '
+        "blocked_count, flagged_count, avg_score, avg_latency_ms, updated_at) "
+        "SELECT gid, date, evaluated, evaluated - blocked - flagged, blocked, flagged, round(rate::numeric * 4, 3), "
+        "latency, (NOW() AT TIME ZONE 'UTC') FROM counted "
+        "ON CONFLICT (guardrail_id, date) DO NOTHING RETURNING guardrail_id, date) "
+        "INSERT INTO raw_seed.guardrail_metrics SELECT guardrail_id, date FROM ins;"
+    )
+
+
 def cleanup_sql() -> Iterator[str]:
     tokens: Final = ", ".join(q(k.token) for k in KEYS)
     ids: Final = ", ".join(q(i) for i in all_ids())
@@ -1170,6 +1232,8 @@ def cleanup_sql() -> Iterator[str]:
           f"WHERE api_key IN ({tokens});"
     for table, _ in DAILY_TABLES:
         yield f'DELETE FROM "{table}" WHERE api_key IN ({tokens});'
+    yield ('DELETE FROM "LiteLLM_SpendLogGuardrailIndex" WHERE request_id IN '
+           f'(SELECT request_id FROM "LiteLLM_SpendLogs" WHERE api_key IN ({tokens}));')
     yield f'DELETE FROM "LiteLLM_SpendLogs" WHERE api_key IN ({tokens}) OR request_id LIKE {q(LEGACY_PREFIX + "%")};'
     yield f'DELETE FROM "LiteLLM_DailyGuardrailMetrics" WHERE guardrail_id IN ({", ".join(q(g[0]) for g in GUARDRAILS)});'
     yield f'DELETE FROM "LiteLLM_DailyGatewayRequests" WHERE route LIKE {q("%#demo")};'
@@ -1184,6 +1248,10 @@ def cleanup_sql() -> Iterator[str]:
            "WHERE g.date = m.date AND g.category = m.category AND g.route = m.route "
            "AND g.successful_requests <= 0 AND g.failed_requests <= 0;")
     yield "TRUNCATE raw_seed.gateway_requests;"
+    yield "CREATE TABLE IF NOT EXISTS raw_seed.guardrail_metrics (guardrail_id text, date text);"
+    yield ('DELETE FROM "LiteLLM_DailyGuardrailMetrics" g USING raw_seed.guardrail_metrics m '
+           "WHERE g.guardrail_id = m.guardrail_id AND g.date = m.date;")
+    yield "TRUNCATE raw_seed.guardrail_metrics;"
     yield f'DELETE FROM "LiteLLM_VerificationToken" WHERE token IN ({tokens});'
     yield f'DELETE FROM "LiteLLM_GuardrailsTable" WHERE guardrail_id IN ({ids});'
     yield f'DELETE FROM "LiteLLM_TeamMembership" WHERE user_id IN ({ids}) OR user_id LIKE {q(LEGACY_PREFIX + "%")};'
@@ -1289,10 +1357,10 @@ def seed_sql(rng: random.Random, now: datetime) -> Iterator[str]:
                 "litellm_params": g["litellm_params"],
                 "guardrail_info": g["guardrail_info"],
                 "status": "active",
-                "created_at": created,
-                "updated_at": "now()",
+                "created_at": ts(now - timedelta(days=182 - 4 * i, hours=3 * i + 2)),
+                "updated_at": ts(now - timedelta(days=158 - 3 * i, hours=5 * i + 1)),
             }
-            for g in GUARDRAIL_CONFIGS
+            for i, g in enumerate(GUARDRAIL_CONFIGS)
         ),
         ' ON CONFLICT ("guardrail_name") DO NOTHING',
     ))
@@ -1306,7 +1374,10 @@ def seed_sql(rng: random.Random, now: datetime) -> Iterator[str]:
         '"failed_requests" = "LiteLLM_DailyGatewayRequests"."failed_requests" + EXCLUDED."failed_requests", '
         "\"updated_at\" = (NOW() AT TIME ZONE 'UTC')",
     ))
-    yield from (upsert("LiteLLM_SpendLogs", row, "request_id") for row in spend_logs(rng, now))
+    logs: Final = tuple(spend_logs(rng, now))
+    yield from (upsert("LiteLLM_SpendLogs", row, "request_id") for row in logs)
+    yield from insert("LiteLLM_SpendLogGuardrailIndex", guardrail_index_rows(logs), " ON CONFLICT DO NOTHING")
+    yield from other_guardrail_metrics_sql(now.date())
     yield from governance_seed_sql(rng, now)
     yield from reroll_global_sql(f"SELECT DISTINCT \"date\" FROM \"LiteLLM_DailyUserSpend\" WHERE api_key IN "
                                  f"({', '.join(q(k.token) for k in KEYS)})")
