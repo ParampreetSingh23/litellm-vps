@@ -32,29 +32,37 @@ MODELS: Final = (
 AUTO_ROUTERS: Final = (
     ("smart-router", {"SIMPLE": "gemini-3.8-flash", "MEDIUM": "gpt-5.4-mini", "COMPLEX": "claude-sonnet-5",
                       "REASONING": "claude-opus-5-5"}, "gpt-5.4-mini"),
-    ("student-success-router", {"SIMPLE": "claude-haiku-4-5", "MEDIUM": "gpt-5.4-mini", "COMPLEX": "claude-sonnet-5"},
-     "gpt-5.4-mini"),
-    ("finance-forecast-router", {"SIMPLE": "gpt-5.4-mini", "MEDIUM": "claude-sonnet-5", "COMPLEX": "gpt-5.6",
-                                 "REASONING": "claude-opus-5-5"}, "claude-sonnet-5"),
+    ("service-desk-router", {"SIMPLE": "gemini-3.8-flash", "MEDIUM": "gpt-5.4-mini", "COMPLEX": "claude-haiku-4-5"},
+     "claude-haiku-4-5"),
+    ("student-services-router", {"SIMPLE": "gemini-3.8-flash", "MEDIUM": "gpt-5.4-mini",
+                                 "COMPLEX": "claude-haiku-4-5"}, "claude-haiku-4-5"),
 )
 
 PROMPTS: Final = (
-    ("early_warning_risk_summary", "claude-sonnet-5", 0.1, ("course", "canvas_signals"),
-     "You support university advisors. From Canvas engagement and grade signals, rate academic risk as low, medium "
-     "or high, list the drivers and suggest one outreach action. Never use or infer demographic attributes.",
-     "Course: {{course}}\nCanvas signals: {{canvas_signals}}"),
-    ("student_outreach_email", "claude-haiku-4-5", 0.4, ("student_first_name", "advisor_name", "concern"),
-     "You write short, supportive emails from an academic advisor. Be warm, avoid judgment, and offer one campus "
-     "resource and a meeting link. Keep it under 120 words.",
-     "Write to {{student_first_name}} from {{advisor_name}} about: {{concern}}"),
-    ("budget_variance_explainer", "gpt-5.6", 0.2, ("department", "peoplesoft_actuals", "budget"),
-     "You are a university finance analyst. Forecast year-end spend from PeopleSoft actuals, explain the variance "
-     "to budget in plain language and give an 80% range.",
-     "Department: {{department}}\nBudget: {{budget}}\nActuals to date: {{peoplesoft_actuals}}"),
-    ("bias_audit_review", "claude-opus-5-5", 0.0, ("model_name", "group_metrics"),
-     "You are an AI fairness auditor. Compute disparate impact ratios (four-fifths rule), flag any group below 0.8 "
-     "and explain likely causes and mitigations. Return JSON with metric, groups, status and notes.",
-     "Model: {{model_name}}\nPer-group outcome metrics: {{group_metrics}}"),
+    ("it_ticket_summary", "claude-haiku-4-5", 0.2, ("ticket_text",),
+     "You are an IT service desk analyst. Summarize the ticket in two sentences, classify it (access, hardware, "
+     "network, software, account) and suggest the first troubleshooting step.",
+     "Ticket:\n{{ticket_text}}"),
+    ("advising_note", "claude-haiku-4-5", 0.3, ("meeting_notes",),
+     "You help academic advisors write appointment notes. Be factual and neutral, list agreed next steps with "
+     "owners and dates, and leave out anything not discussed.",
+     "Turn these meeting notes into an advising note:\n{{meeting_notes}}"),
+    ("budget_variance_explainer", "gpt-5.6", 0.2, ("department", "actuals", "budget"),
+     "You are a finance analyst. Forecast year-end spend from actuals to date, explain the variance to budget in "
+     "plain language and give an 80% range.",
+     "Department: {{department}}\nBudget: {{budget}}\nActuals to date: {{actuals}}"),
+    ("research_abstract_summary", "claude-sonnet-5", 0.2, ("abstract", "audience"),
+     "Summarize research for the given audience in under 150 words. Keep claims faithful to the source and note "
+     "the study design and sample size.",
+     "Audience: {{audience}}\nAbstract:\n{{abstract}}"),
+    ("policy_qa", "gpt-5.4-mini", 0.1, ("question", "policy_text"),
+     "Answer only from the provided policy text and cite the section. If the answer is not there, say so and "
+     "suggest who to contact.",
+     "Policy:\n{{policy_text}}\n\nQuestion: {{question}}"),
+    ("model_output_review", "claude-opus-5-5", 0.0, ("outputs", "criteria"),
+     "You review AI outputs for accuracy, tone and consistency across user groups. Score each criterion 0-100, "
+     "flag any group gap above 5 points, and return JSON with scores, gaps and notes.",
+     "Criteria: {{criteria}}\nOutputs:\n{{outputs}}"),
 )
 
 
