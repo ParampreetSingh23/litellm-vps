@@ -14,12 +14,12 @@ import sys
 import urllib.error
 import urllib.request
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Final
 
 NAMESPACE: Final = uuid.UUID("7b1c2f0e-5a4d-4e8b-9c3f-2d6a8e1b4c90")
-MODEL_CREATOR: Final = "Demo Setup"
+MODEL_CREATOR: Final = "harsh.malhotra@rabbitt.ai"
 
 MODELS: Final = (
     ("gpt-5.6", "openai/gpt-5.6", "OPENAI_API_KEY"),
@@ -73,7 +73,7 @@ def model_id(name: str) -> str:
 
 
 def model_info(name: str) -> dict[str, str]:
-    created_at: Final = datetime.now(timezone.utc).isoformat()
+    created_at: Final = (datetime.now(timezone.utc) - timedelta(days=46)).isoformat()
     return {"id": model_id(name), "created_by": MODEL_CREATOR, "created_at": created_at,
             "updated_by": MODEL_CREATOR, "updated_at": created_at}
 
