@@ -184,6 +184,22 @@ async def test_detail_db_row_still_resolves():
     assert resp.type == "ContentSafety"
 
 
+@pytest.mark.asyncio
+async def test_builtin_content_filter_reports_litellm_provider():
+    prisma = _prisma(
+        find_unique=_db_row(guardrail_id="db-1", provider="litellm_content_filter"),
+        find_many=[_db_row(guardrail_id="db-1", provider="litellm_content_filter")],
+    )
+    p1, p2 = _patches(prisma, _config_handler())
+    with p1, p2:
+        detail = await guardrails_usage_detail(
+            guardrail_id="db-1", start_date=START, end_date=END, user_api_key_dict=ADMIN
+        )
+        overview = await guardrails_usage_overview(start_date=START, end_date=END, user_api_key_dict=ADMIN)
+    assert detail.provider == "LiteLLM"
+    assert [r.provider for r in overview.rows if r.id == "db-1"] == ["LiteLLM"]
+
+
 # ---- overview ---------------------------------------------------------------
 
 

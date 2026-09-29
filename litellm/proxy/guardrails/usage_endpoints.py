@@ -28,6 +28,7 @@ from litellm.repositories.table_repositories import (
     SpendLogGuardrailIndexRepository,
     SpendLogsRepository,
 )
+from litellm.types.guardrails import SupportedGuardrailIntegrations
 
 if TYPE_CHECKING:
     from prisma import models as prisma_models
@@ -434,6 +435,11 @@ def _field_str(mapping: Mapping[str, object], key: str, default: str) -> str:
     return str(mapping.get(key, default))
 
 
+def _guardrail_provider(litellm_params: Mapping[str, object]) -> str:
+    guardrail: Final = _field_str(litellm_params, "guardrail", "Unknown")
+    return "LiteLLM" if guardrail == SupportedGuardrailIntegrations.LITELLM_CONTENT_FILTER.value else guardrail
+
+
 def _get_guardrail_attrs(g: "_DbOrConfigGuardrail") -> tuple[str | None, str]:
     """Get (guardrail_id, display_name) from guardrail - handles Prisma model or dict."""
     gid: Final = _get_guardrail_field(g, "guardrail_id")
@@ -464,7 +470,7 @@ def _guardrail_overview_rows(
         req, blocked = a["requests"], a["blocked"]
         fail_rate = (100.0 * blocked / req) if req else 0.0
         litellm_params = _to_dict(_get_guardrail_field(g, "litellm_params"))
-        provider = _field_str(litellm_params, "guardrail", "Unknown")
+        provider = _guardrail_provider(litellm_params)
         guardrail_info = _to_dict(_get_guardrail_field(g, "guardrail_info"))
         gtype = _field_str(guardrail_info, "type", "Guardrail")
         prev_fail = 0.0
@@ -716,7 +722,7 @@ async def guardrails_usage_detail(
         guardrail_id=guardrail_id,
         guardrail_name=_guardrail_name or guardrail_id,
         type=_field_str(guardrail_info, "type", "Guardrail"),
-        provider=_field_str(litellm_params, "guardrail", "Unknown"),
+        provider=_guardrail_provider(litellm_params),
         requestsEvaluated=requests,
         failRate=round(fail_rate, 1),
         avgScore=None,
