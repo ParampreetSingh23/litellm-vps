@@ -14,10 +14,12 @@ import sys
 import urllib.error
 import urllib.request
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Final
 
 NAMESPACE: Final = uuid.UUID("7b1c2f0e-5a4d-4e8b-9c3f-2d6a8e1b4c90")
+MODEL_CREATOR: Final = "Demo Setup"
 
 MODELS: Final = (
     ("gpt-5.6", "openai/gpt-5.6", "OPENAI_API_KEY"),
@@ -70,6 +72,12 @@ def model_id(name: str) -> str:
     return str(uuid.uuid5(NAMESPACE, f"model-{name}"))
 
 
+def model_info(name: str) -> dict[str, str]:
+    created_at: Final = datetime.now(timezone.utc).isoformat()
+    return {"id": model_id(name), "created_by": MODEL_CREATOR, "created_at": created_at,
+            "updated_by": MODEL_CREATOR, "updated_at": created_at}
+
+
 def dotprompt(model: str, temperature: float, variables: tuple[str, ...], system: str, user: str) -> str:
     schema: Final = "".join(f"    {v}: string\n" for v in variables)
     return (
@@ -104,7 +112,7 @@ def create(base: str, key: str) -> None:
         call(base, key, "POST", "/model/new", {
             "model_name": name,
             "litellm_params": {"model": model, "api_key": f"os.environ/{env}"},
-            "model_info": {"id": model_id(name)},
+            "model_info": model_info(name),
         })
     for name, tiers, default in AUTO_ROUTERS:
         call(base, key, "POST", "/model/new", {
@@ -114,7 +122,7 @@ def create(base: str, key: str) -> None:
                 "complexity_router_config": {"tiers": tiers},
                 "complexity_router_default_model": default,
             },
-            "model_info": {"id": model_id(name)},
+            "model_info": model_info(name),
         })
     for prompt_id, model, temperature, variables, system, user in PROMPTS:
         call(base, key, "POST", "/prompts", {
