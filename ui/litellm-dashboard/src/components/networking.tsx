@@ -4638,6 +4638,40 @@ export const getPromptInfo = async (
   }
 };
 
+export interface PromptRecommendation {
+  category: "clarity" | "specificity" | "structure" | "examples" | "output_format" | "variables" | "token_efficiency";
+  severity: "high" | "medium" | "low";
+  excerpt: string;
+  issue: string;
+  suggestion: string;
+}
+
+export interface PromptRecommendationsResponse {
+  recommendations: PromptRecommendation[];
+  improved_prompt: string;
+  original_tokens: number;
+  improved_tokens: number;
+}
+
+export const getPromptRecommendations = async (
+  accessToken: string,
+  dotpromptContent: string,
+  reviewerModel: string,
+): Promise<PromptRecommendationsResponse> => {
+  const response = await fetch(`${getProxyBaseUrl()}/prompts/recommendations`, {
+    method: "POST",
+    headers: {
+      [globalLitellmHeaderName]: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ dotprompt_content: dotpromptContent, reviewer_model: reviewerModel }),
+  });
+  if (!response.ok) {
+    throw new Error(deriveErrorMessage(await response.json()));
+  }
+  return response.json();
+};
+
 export const getPromptVersions = async (
   accessToken: string,
   promptId: string,

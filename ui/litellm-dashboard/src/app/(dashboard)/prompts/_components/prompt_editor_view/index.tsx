@@ -13,6 +13,7 @@ import ConversationPanel from "./conversation_panel";
 import PublishModal from "./PublishModal";
 import DotpromptViewTab from "./DotpromptViewTab";
 import VersionHistorySidePanel from "./VersionHistorySidePanel";
+import RecommendationsTab from "./RecommendationsTab";
 
 const PromptEditorView: React.FC<PromptEditorViewProps> = ({ onClose, onSuccess, accessToken, initialPromptData }) => {
   const getInitialPrompt = (): PromptType => {
@@ -73,7 +74,7 @@ const PromptEditorView: React.FC<PromptEditorViewProps> = ({ onClose, onSuccess,
   const [showNameModal, setShowNameModal] = useState(false);
   const [editingToolIndex, setEditingToolIndex] = useState<number | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [viewMode, setViewMode] = useState<"pretty" | "dotprompt">("pretty");
+  const [viewMode, setViewMode] = useState<"pretty" | "dotprompt" | "improve">("pretty");
 
   const addMessage = () => {
     setPrompt({
@@ -330,6 +331,14 @@ const PromptEditorView: React.FC<PromptEditorViewProps> = ({ onClose, onSuccess,
                 >
                   DOTPROMPT
                 </button>
+                <button
+                  className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${
+                    viewMode === "improve" ? "bg-card text-foreground shadow-xs" : "text-muted-foreground"
+                  }`}
+                  onClick={() => setViewMode("improve")}
+                >
+                  IMPROVE
+                </button>
               </div>
             </div>
 
@@ -355,8 +364,24 @@ const PromptEditorView: React.FC<PromptEditorViewProps> = ({ onClose, onSuccess,
                   onMoveMessage={moveMessage}
                 />
               </div>
-            ) : (
+            ) : viewMode === "dotprompt" ? (
               <DotpromptViewTab prompt={prompt} />
+            ) : (
+              <RecommendationsTab
+                prompt={prompt}
+                accessToken={accessToken}
+                onApply={(improvedPrompt) => {
+                  const parsed = parseExistingPrompt({
+                    prompt_spec: {
+                      prompt_id: prompt.name,
+                      litellm_params: { dotprompt_content: improvedPrompt },
+                      prompt_info: { environment: prompt.environment },
+                    },
+                  });
+                  setPrompt({ ...parsed, name: prompt.name, environment: prompt.environment });
+                  setViewMode("pretty");
+                }}
+              />
             )}
           </div>
 

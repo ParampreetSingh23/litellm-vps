@@ -2,6 +2,7 @@
 Test prompt endpoints for version filtering and history
 """
 
+import json
 from unittest.mock import MagicMock
 
 import pytest
@@ -460,3 +461,95 @@ class TestConfigPromptInfoWithEnvironment:
 
         assert exc_info.value.status_code == 400
         assert "environment production" in exc_info.value.detail
+
+
+class TestPromptRecommendations:
+    ORIGINAL = (
+        "---\nmodel: review-test\ninput:\n  schema:\n    name: string\n---\n"
+        "System: You are a helpful assistant who writes a very friendly greeting for the user.\n"
+        "User: Please greet {{name}} in a friendly and concise way."
+    )
+    IMPROVED = (
+        "---\nmodel: review-test\ninput:\n  schema:\n    name: string\n---\n"
+        "System: Greet briefly.\nUser: Greet {{name}}."
+    )
+
+    def test_fixed_checks_find_missing_and_unused_variables(self):
+        from litellm.proxy.prompts.prompt_recommendations import (
+            ParsedPrompt,
+            fixed_recommendations,
+            parse_prompt,
+        )
+
+        parsed = parse_prompt(
+            "---\nmodel: review-test\ninput:\n  schema:\n    unused: string\n---\nUser: Hello {{missing}}"
+        )
+        assert isinstance(parsed, ParsedPrompt)
+        recommendations = fixed_recommendations(parsed, None)
+        assert {(item.issue, item.severity) for item in recommendations if item.category == "variables"} == {
+            ("missing is used but not declared", "high"),
+            ("unused is declared but not used", "low"),
+        }
+        assert any(item.issue == "No system message is present" for item in recommendations)
+
+    @pytest.mark.asyncio
+    async def test_review_sends_schema_and_returns_shorter_prompt(self):
+        from litellm.proxy.prompts.prompt_recommendations import review_prompt
+        from litellm.types.proxy.prompt_endpoints import (
+            PromptRecommendationsRequest,
+            PromptRecommendationsResponse,
+        )
+
+        async def complete(data: dict[str, object]) -> object:
+            assert data["model"] == "reviewer-model"
+            assert data["stream"] is False
+            messages = data["messages"]
+            assert isinstance(messages, tuple)
+            assert messages[1]["content"] == self.ORIGINAL
+            response_format = data["response_format"]
+            assert isinstance(response_format, dict)
+            assert response_format["json_schema"]["schema"]["properties"]["improved_prompt"]
+            return {
+                "choices": [{"message": {"content": json.dumps({
+                    "recommendations": [{
+                        "category": "token_efficiency", "severity": "low", "excerpt": "very friendly",
+                        "issue": "The instruction repeats tone", "suggestion": "Shorten the wording",
+                    }],
+                    "improved_prompt": self.IMPROVED,
+                })}}],
+            }
+
+        result = await review_prompt(
+            PromptRecommendationsRequest(dotprompt_content=self.ORIGINAL, reviewer_model="reviewer-model"), complete
+        )
+        assert isinstance(result, PromptRecommendationsResponse)
+        assert result.improved_prompt == self.IMPROVED
+        assert result.improved_tokens < result.original_tokens
+        assert result.recommendations[0].issue == "The instruction repeats tone"
+
+    @pytest.mark.asyncio
+    async def test_invalid_reviewer_json_returns_502(self):
+        from litellm.proxy.prompts.prompt_recommendations import ReviewFailure, review_prompt
+        from litellm.types.proxy.prompt_endpoints import PromptRecommendationsRequest
+
+        async def complete(data: dict[str, object]) -> object:
+            return {"choices": [{"message": {"content": "not json"}}]}
+
+        result = await review_prompt(PromptRecommendationsRequest(dotprompt_content=self.ORIGINAL), complete)
+        assert isinstance(result, ReviewFailure)
+        assert result.status_code == 502
+
+    @pytest.mark.asyncio
+    async def test_reviewer_cannot_change_prompt_configuration(self):
+        from litellm.proxy.prompts.prompt_recommendations import ReviewFailure, review_prompt
+        from litellm.types.proxy.prompt_endpoints import PromptRecommendationsRequest
+
+        async def complete(data: dict[str, object]) -> object:
+            changed_model = self.IMPROVED.replace("model: review-test", "model: other-model")
+            return {"choices": [{"message": {"content": json.dumps({
+                "recommendations": [], "improved_prompt": changed_model,
+            })}}]}
+
+        result = await review_prompt(PromptRecommendationsRequest(dotprompt_content=self.ORIGINAL), complete)
+        assert isinstance(result, ReviewFailure)
+        assert result.status_code == 502

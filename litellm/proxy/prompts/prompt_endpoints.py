@@ -44,7 +44,11 @@ from litellm.types.prompts.init_prompts import (
     PromptSpec,
     PromptTemplateBase,
 )
-from litellm.types.proxy.prompt_endpoints import TestPromptRequest
+from litellm.types.proxy.prompt_endpoints import (
+    PromptRecommendationsRequest,
+    PromptRecommendationsResponse,
+    TestPromptRequest,
+)
 
 if TYPE_CHECKING:
     from litellm.proxy.prompts.prompt_registry import InMemoryPromptRegistry
@@ -1007,6 +1011,56 @@ async def patch_prompt(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+async def _process_prompt_completion(
+    data: dict[str, object],
+    fastapi_request: Request,
+    fastapi_response: Response,
+    user_api_key_dict: UserAPIKeyAuth,
+) -> object:
+    from litellm.proxy.common_request_processing import ProxyBaseLLMRequestProcessing
+    from litellm.proxy.proxy_server import (
+        general_settings,
+        llm_router,
+        proxy_config,
+        proxy_logging_obj,
+        select_data_generator,
+        user_api_base,
+        user_max_tokens,
+        user_model,
+        user_request_timeout,
+        user_temperature,
+        version,
+    )
+
+    model: Final = data.get("model")
+    is_request_body_safe(
+        request_body=data,
+        general_settings=general_settings,
+        llm_router=llm_router,
+        model=model if isinstance(model, str) else "",
+    )
+    processor: Final = ProxyBaseLLMRequestProcessing(data=data)
+    result: Final[object] = await processor.base_process_llm_request(
+        request=fastapi_request,
+        fastapi_response=fastapi_response,
+        user_api_key_dict=user_api_key_dict,
+        route_type="acompletion",
+        proxy_logging_obj=proxy_logging_obj,
+        llm_router=llm_router,
+        general_settings=general_settings,
+        proxy_config=proxy_config,
+        select_data_generator=select_data_generator,
+        model=None,
+        user_model=user_model,
+        user_temperature=user_temperature,
+        user_request_timeout=user_request_timeout,
+        user_max_tokens=user_max_tokens,
+        user_api_base=user_api_base,
+        version=version,
+    )
+    return result
+
+
 @router.post(
     "/prompts/test",
     tags=["Prompt Management"],
@@ -1042,24 +1096,7 @@ async def test_prompt(
     from pydantic import BaseModel
 
     from litellm.integrations.dotprompt.dotprompt_manager import DotpromptManager
-    from litellm.integrations.dotprompt.prompt_manager import (
-        PromptManager,
-        PromptTemplate,
-    )
-    from litellm.proxy.common_request_processing import ProxyBaseLLMRequestProcessing
-    from litellm.proxy.proxy_server import (
-        general_settings,
-        llm_router,
-        proxy_config,
-        proxy_logging_obj,
-        select_data_generator,
-        user_api_base,
-        user_max_tokens,
-        user_model,
-        user_request_timeout,
-        user_temperature,
-        version,
-    )
+    from litellm.integrations.dotprompt.prompt_manager import PromptManager, PromptTemplate
 
     try:
         # Parse the dotprompt content and create PromptTemplate
@@ -1100,38 +1137,14 @@ async def test_prompt(
         optional_params["stream"] = True
 
         # Build request data for chat completion
-        data: Final = {
+        data: Final[dict[str, object]] = {
             "model": template.model,
             "messages": messages,
         }
         data.update(optional_params)
 
-        is_request_body_safe(
-            request_body=data,
-            general_settings=general_settings,
-            llm_router=llm_router,
-            model=data.get("model", ""),
-        )
-
-        # Use ProxyBaseLLMRequestProcessing to go through all proxy logic
-        base_llm_response_processor: Final = ProxyBaseLLMRequestProcessing(data=data)
-        result: Final[object] = await base_llm_response_processor.base_process_llm_request(
-            request=fastapi_request,
-            fastapi_response=fastapi_response,
-            user_api_key_dict=user_api_key_dict,
-            route_type="acompletion",
-            proxy_logging_obj=proxy_logging_obj,
-            llm_router=llm_router,
-            general_settings=general_settings,
-            proxy_config=proxy_config,
-            select_data_generator=select_data_generator,
-            model=None,
-            user_model=user_model,
-            user_temperature=user_temperature,
-            user_request_timeout=user_request_timeout,
-            user_max_tokens=user_max_tokens,
-            user_api_base=user_api_base,
-            version=version,
+        result: Final[object] = await _process_prompt_completion(
+            data, fastapi_request, fastapi_response, user_api_key_dict
         )
 
         if isinstance(result, BaseModel):
@@ -1146,6 +1159,30 @@ async def test_prompt(
     except Exception as e:
         verbose_proxy_logger.exception("Error testing prompt: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post(
+    "/prompts/recommendations",
+    tags=["Prompt Management"],
+    dependencies=[Depends(user_api_key_auth)],
+)
+async def get_prompt_recommendations(
+    request: PromptRecommendationsRequest,
+    fastapi_request: Request,
+    fastapi_response: Response,
+    user_api_key_dict: UserAPIKeyAuth = Depends(user_api_key_auth),
+) -> PromptRecommendationsResponse:
+    from litellm.proxy.prompts.prompt_recommendations import ReviewFailure, review_prompt
+
+    async def complete(data: dict[str, object]) -> object:
+        return await _process_prompt_completion(
+            data, fastapi_request, fastapi_response, user_api_key_dict
+        )
+
+    result: Final = await review_prompt(request, complete)
+    if isinstance(result, ReviewFailure):
+        raise HTTPException(status_code=result.status_code, detail=result.detail)
+    return result
 
 
 @router.post(
