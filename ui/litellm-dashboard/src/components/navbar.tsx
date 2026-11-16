@@ -125,7 +125,6 @@ const Navbar: React.FC<NavbarProps> = ({
                   <ThemeToggle />
                   <span className="mx-0.5 h-6 w-px shrink-0 bg-border" aria-hidden />
                   {deploymentHealth}
-                  <NotificationsBell accessToken={accessToken} />
                   <span className="mx-0.5 h-6 w-px shrink-0 bg-border" aria-hidden />
                   <UserDropdown onLogout={handleLogout} />
                 </div>

@@ -78,18 +78,13 @@ export function DashboardHeader({
               <ToolbarSeparator />
             </>
           )}
-          <DocsLink />
-          <BlogDropdown />
-          {!hideCommunityLinks && <CommunityEngagementButtons />}
           <ToolbarSeparator />
           <ThemeToggle />
           {deploymentHealth}
-          <NotificationsBell accessToken={accessToken} />
         </div>
         <div className="flex shrink-0 items-center gap-1 md:hidden">
           <CommandPaletteTrigger mobile />
           {deploymentHealth}
-          <NotificationsBell accessToken={accessToken} />
           <Popover open={!isDesktop && mobileToolsOpen} onOpenChange={setMobileToolsOpen}>
             <PopoverTrigger
               render={<Button variant="ghost" size="icon" className="size-11" aria-label="More options" />}
@@ -102,9 +97,6 @@ export function DashboardHeader({
               {showWorkerSwitch && <WorkerDropdown onWorkerSwitch={handleWorkerSwitch} />}
               <div className="flex flex-wrap items-center gap-2">
                 <ThemeToggle />
-                <DocsLink />
-                <BlogDropdown />
-                {!hideCommunityLinks && <CommunityEngagementButtons />}
               </div>
             </PopoverContent>
           </Popover>

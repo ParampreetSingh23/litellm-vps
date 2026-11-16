@@ -744,11 +744,7 @@ const ModelInfoEditForm: React.FC<ModelInfoEditFormProps> = ({
 
             <div>
               <FieldLabel>
-                LiteLLM Params
-                <DocsHint
-                  text="Additional parameters for model requests. Settings with dedicated fields above are edited there. Remove a key here to delete its saved value."
-                  href="https://docs.litellm.ai/docs/completion/input"
-                />
+                RAW Params
               </FieldLabel>
               {isEditing ? (
                 <FormField control={form.control} name="litellm_extra_params">
