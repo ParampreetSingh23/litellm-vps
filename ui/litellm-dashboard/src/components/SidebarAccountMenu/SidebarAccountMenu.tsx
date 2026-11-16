@@ -2,6 +2,7 @@ import useAuthorized from "@/app/(dashboard)/hooks/useAuthorized";
 import { useHealthReadinessDetails } from "@/app/(dashboard)/hooks/healthReadiness/useHealthReadinessDetails";
 import { useDisableBouncingIcon } from "@/app/(dashboard)/hooks/useDisableBouncingIcon";
 import { useDisableLiteAdmin } from "@/app/(dashboard)/hooks/useDisableLiteAdmin";
+import { ARIA_AGENT_LABEL } from "@/components/liteadmin/aria-brand";
 import { useDisableShowNewBadge } from "@/app/(dashboard)/hooks/useDisableShowNewBadge";
 import { useDisableShowPrompts } from "@/app/(dashboard)/hooks/useDisableShowPrompts";
 import { emitLocalStorageChange, removeLocalStorageItem, setLocalStorageItem } from "@/utils/localStorageUtils";
@@ -235,14 +236,14 @@ const SidebarAccountMenu: React.FC<SidebarAccountMenuProps> = ({ onLogout, colla
               />
             </div>
           ))}
-          {canUseLiteAdmin && (
+          {premiumUser === true && canUseLiteAdmin && (
             <div className="flex h-[38px] items-center justify-between gap-3 px-3">
-              <span className="text-[13px] text-foreground">Hide RAW Assistant</span>
+              <span className="text-[13px] text-foreground">Hide {ARIA_AGENT_LABEL}</span>
               <Switch
                 size="sm"
                 checked={disableLiteAdmin}
                 onCheckedChange={setDisableLiteAdmin}
-                aria-label="Toggle hide RAW Assistant"
+                aria-label={`Toggle hide ${ARIA_AGENT_LABEL}`}
               />
             </div>
           )}

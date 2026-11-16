@@ -2,7 +2,7 @@ use super::*;
 
 impl CyberArkSecretManager {
     pub fn with_client(
-        client: reqwest::Client,
+        client: Client,
         endpoint: reqwest::Url,
         account: String,
         username: String,
@@ -26,10 +26,13 @@ impl CyberArkSecretManager {
             token,
             secrets,
             authentication_lock: Arc::new(tokio::sync::Mutex::new(())),
+            policy_load_lock: Arc::new(tokio::sync::Mutex::new(())),
         }
     }
 
     pub fn new(
+        pool: &HttpClientPool,
+        config: &HttpClientConfig,
         environment: Arc<dyn Lookup + Send + Sync>,
         enterprise_enabled: bool,
     ) -> Result<Self, Error> {
@@ -46,27 +49,33 @@ impl CyberArkSecretManager {
             .get(CYBERARK_SSL_VERIFY)
             .map(|value| !value.trim().eq_ignore_ascii_case("false"))
             .unwrap_or(true);
-        let mut builder = reqwest::Client::builder();
         if !verify {
             litellm_tracing::warn!(
                 "CyberArk SSL verification is disabled. This is insecure and should only be used for testing with self-signed certificates."
             );
-            builder = builder.danger_accept_invalid_certs(true);
         }
-        if !cert.is_empty() && !key.is_empty() {
-            let certificate = fs::read(cert).map_err(|_| Error::ClientCertificate)?;
-            let private_key = fs::read(key).map_err(|_| Error::ClientCertificate)?;
-            let identity = reqwest::Identity::from_pem(&[certificate, private_key].concat())
-                .map_err(|_| Error::ClientCertificate)?;
-            builder = builder.identity(identity);
-        }
-        let client = builder.build()?;
+        let config = HttpClientConfig {
+            verify: effective_verify(verify, &config.verify),
+            client_certificate: (!cert.is_empty() && !key.is_empty()).then(|| {
+                ClientIdentity::Split {
+                    certificate: cert.into(),
+                    key: key.into(),
+                }
+            }),
+            ..config.clone()
+        };
+        let client = pool
+            .client(&config, ClientVariant::Provider)
+            .map_err(|error| match error.tls_source() {
+                Some(TlsSource::ClientIdentity) => Error::ClientCertificate(error),
+                Some(TlsSource::CaBundle) | None => Error::Client(error),
+            })?;
         let endpoint = reqwest::Url::parse(
             &environment
                 .get(CYBERARK_API_BASE)
                 .unwrap_or_else(|| DEFAULT_API_BASE.to_owned()),
         )
-        .map_err(|_| Error::Endpoint)?;
+        .map_err(Error::Endpoint)?;
         let account = environment
             .get(CYBERARK_ACCOUNT)
             .unwrap_or_else(|| DEFAULT_ACCOUNT.to_owned());
@@ -79,7 +88,7 @@ impl CyberArkSecretManager {
                 value
                     .parse::<u64>()
                     .map(Duration::from_secs)
-                    .map_err(|_| Error::RefreshInterval)
+                    .map_err(Error::RefreshInterval)
             })
             .transpose()?;
         Ok(Self::with_client(
@@ -99,7 +108,7 @@ impl CyberArkSecretManager {
                 self.account,
                 utf8_percent_encode(&self.username, SECRET_NAME_SAFE)
             ))
-            .map_err(|_| Error::Endpoint)
+            .map_err(Error::Endpoint)
     }
 
     pub(super) async fn authenticate(
@@ -119,11 +128,14 @@ impl CyberArkSecretManager {
             context,
         )
         .send()
-        .await?;
+        .await
+        .map_err(litellm_http::Error::from)?;
         if !response.status().is_success() {
             return Err(Error::AuthStatus(response.status().as_u16()));
         }
-        let token = SecretValue::new(STANDARD.encode(response.text().await?));
+        let token = SecretValue::new(
+            STANDARD.encode(response.text().await.map_err(litellm_http::Error::from)?),
+        );
         self.token.insert((), token.clone()).await;
         Ok(token)
     }
@@ -139,9 +151,42 @@ impl CyberArkSecretManager {
     }
 }
 
+fn effective_verify(cyberark_verify: bool, host: &Verify) -> Verify {
+    match (cyberark_verify, host) {
+        (false, _) => Verify::Disabled,
+        (true, Verify::Disabled) => Verify::BuiltInRoots,
+        (true, host) => host.clone(),
+    }
+}
+
 fn normalize_endpoint(mut endpoint: reqwest::Url) -> reqwest::Url {
     if !endpoint.path().ends_with('/') {
         endpoint.set_path(&format!("{}/", endpoint.path()));
     }
     endpoint
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use rstest::rstest;
+
+    use super::*;
+
+    #[rstest]
+    #[case::host_disabled(true, Verify::Disabled, Verify::BuiltInRoots)]
+    #[case::host_bundle(
+        true,
+        Verify::CaBundle(PathBuf::from("/ca.pem")),
+        Verify::CaBundle(PathBuf::from("/ca.pem"))
+    )]
+    #[case::cyberark_disabled(false, Verify::CaBundle(PathBuf::from("/ca.pem")), Verify::Disabled)]
+    fn cyberark_verification_uses_its_configured_policy(
+        #[case] cyberark_verify: bool,
+        #[case] host_verify: Verify,
+        #[case] expected: Verify,
+    ) {
+        assert_eq!(effective_verify(cyberark_verify, &host_verify), expected);
+    }
 }

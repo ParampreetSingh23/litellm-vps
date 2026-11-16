@@ -239,6 +239,7 @@ export const CallbackSelector: React.FC<CallbackSelectorProps> = ({
 };
 
 const CALLBACK_CONFIG_ALIASES: Record<string, string> = { s3_v2: "s3" };
+const CALLBACK_UNSUPPORTED_PARAMS: Record<string, readonly string[]> = { s3: ["s3_partition_granularity"] };
 
 interface DynamicParamConfig {
   type?: string;
@@ -275,7 +276,8 @@ const getDynamicParamsForCallback = (
 
   const callbackConfig = findCallbackConfig(callbackConfigs, callbackName);
   if (callbackConfig?.dynamic_params) {
-    return Object.keys(callbackConfig.dynamic_params);
+    const unsupportedParams = CALLBACK_UNSUPPORTED_PARAMS[callbackName] ?? [];
+    return Object.keys(callbackConfig.dynamic_params).filter((param) => !unsupportedParams.includes(param));
   }
 
   return fallbackVariables ? Object.keys(fallbackVariables) : [];
@@ -284,7 +286,7 @@ const getDynamicParamsForCallback = (
 // Shared helper function to build callback payload
 const buildCallbackPayload = (formValues: Record<string, any>, callbackName: string) => {
   return {
-    environment_variables: formValues,
+    environment_variables: Object.fromEntries(Object.entries(formValues).filter(([, value]) => value !== undefined)),
     litellm_settings: {
       success_callback: [callbackName],
     },
@@ -347,8 +349,15 @@ const Settings: React.FC<SettingsPageProps> = ({ accessToken, userRole, userID, 
       );
       const fieldNameFor = (variable: string) =>
         params.find((param) => param.toUpperCase() === variable.toUpperCase()) ?? variable;
+      const callbackConfig = findCallbackConfig(callbackConfigs, selectedEditCallback.name);
       const normalized = Object.fromEntries(
-        Object.entries(selectedEditCallback.variables || {}).map(([k, v]) => [fieldNameFor(k), v ?? ""]),
+        Object.entries(selectedEditCallback.variables || {}).flatMap(([key, value]) => {
+          const fieldName = fieldNameFor(key);
+          if (value == null && callbackConfig?.dynamic_params?.[fieldName]?.type === "select") {
+            return [];
+          }
+          return [[fieldName, value ?? ""]];
+        }),
       );
       editForm.reset({
         ...normalized,
