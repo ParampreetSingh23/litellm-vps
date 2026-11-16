@@ -9,7 +9,7 @@ import { GUARDRAIL_PRESETS } from "./guardrail_garden_configs";
 import { GuardrailCardInfo } from "./guardrail_garden_data";
 
 const CATEGORY_LABELS: Record<GuardrailCardInfo["category"], { provider: string; type: string }> = {
-  litellm: { provider: "LiteLLM Content Filter", type: "Content Filter" },
+  litellm: { provider: "RAW Content Filter", type: "Content Filter" },
   decision_model: { provider: "Decision Model", type: "Decision Model" },
   partner: { provider: "Partner Guardrail", type: "Partner" },
 };

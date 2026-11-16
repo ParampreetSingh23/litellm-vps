@@ -15,7 +15,6 @@ import guardrailsAiLogo from "../../../../../public/assets/logos/guardrails_ai.j
 import javelinLogo from "../../../../../public/assets/logos/javelin.png";
 import lakeraAiLogo from "../../../../../public/assets/logos/lakeraai.jpeg";
 import lassoLogo from "../../../../../public/assets/logos/lasso.png";
-import litellmLogo from "../../../../../public/assets/logos/litellm_monogram.svg";
 import rawLogo from "../../../../../public/assets/logos/raw_icon.png";
 import microsoftAzureLogo from "../../../../../public/assets/logos/microsoft_azure.svg";
 import nomaSecurityLogo from "../../../../../public/assets/logos/noma_security.png";
@@ -328,7 +327,7 @@ export const guardrailLogoMap = {
   "Conduct Guard": conductLogo.src,
   Wingback: wingbackLogo.src,
   "Airia Guardrail": airiaLogo.src,
-  "Decision Model": litellmLogo.src,
+  "Decision Model": rawLogo.src,
 } satisfies Record<string, string>;
 
 export const getGuardrailLogo = (displayName: string): string | undefined =>

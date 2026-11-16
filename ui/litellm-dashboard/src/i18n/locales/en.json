@@ -108,7 +108,7 @@
       },
       "enterpriseNotice": {
         "title": "Enterprise Feature Notice",
-        "description": "Parts of policy attachments will be on LiteLLM Enterprise in subsequent releases."
+        "description": "Parts of policy attachments will be on RAW Enterprise in subsequent releases."
       },
       "addPolicy": "+ Add New Policy",
       "addAttachment": "+ Add New Attachment",
@@ -885,7 +885,7 @@
     "usageBreakdown": {
       "ariaLabel": "Usage and cost",
       "title": "Usage & Cost",
-      "description": "Billable units the provider reported for this guardrail and what LiteLLM priced them at",
+      "description": "Billable units the provider reported for this guardrail and what RAW priced them at",
       "empty": "No billable usage units were recorded in this period.",
       "metrics": {
         "cost": "Cost",
@@ -911,7 +911,7 @@
       "costMath": {
         "title": "How this cost is calculated",
         "formula": "priced units × price per unit = cost, per counter",
-        "explanation": "Per-unit prices come from the cost map LiteLLM ships with."
+        "explanation": "Per-unit prices come from the cost map RAW ships with."
       },
       "unitsMath": {
         "title": "How usage units add up",

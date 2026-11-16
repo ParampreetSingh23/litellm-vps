@@ -284,7 +284,7 @@ const ChatShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             className="chat-theme chat-mobile-sidebar moyai-chat-sidebar"
           >
             <SheetHeader className="sr-only">
-              <SheetTitle>LiteLLM Chat</SheetTitle>
+              <SheetTitle>RAW Chat</SheetTitle>
               <SheetDescription>Conversations and chat workspace navigation</SheetDescription>
             </SheetHeader>
             {sidebar}

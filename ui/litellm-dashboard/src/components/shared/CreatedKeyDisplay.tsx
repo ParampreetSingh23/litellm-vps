@@ -14,7 +14,7 @@ interface CreatedKeyDisplayProps {
 export const buildAgentInstructions = (baseUrl: string, apiKey: string): string => {
   const normalizedBaseUrl = baseUrl.replace(/\/+$/, "");
   const endpointIntroduction =
-    "LiteLLM is a gateway that exposes OpenAI and Anthropic compatible APIs. " +
+    "RAW is a gateway that exposes OpenAI and Anthropic compatible APIs. " +
     `Send the virtual key as a Bearer token (Authorization: Bearer ${apiKey}) to:`;
 
   return [
